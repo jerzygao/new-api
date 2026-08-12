@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 
 import type {
+  ChannelDimensionTokenUsage,
   ChannelUsageSummary,
   FlowQuotaDataItem,
   QuotaDataItem,
@@ -103,6 +104,30 @@ export async function getChannelUsageSummaries(params: {
     '/api/data/channels',
     { params }
   )
+  return res.data
+}
+
+// Get per-user per-channel token usage within a time range (admin only)
+export async function getUserChannelTokenUsage(params: {
+  start_timestamp: number
+  end_timestamp: number
+}) {
+  const res = await api.get<{
+    success: boolean
+    data: ChannelDimensionTokenUsage[]
+  }>('/api/data/users/channel-tokens', { params })
+  return res.data
+}
+
+// Get per-group per-channel token usage within a time range (admin only)
+export async function getGroupChannelTokenUsage(params: {
+  start_timestamp: number
+  end_timestamp: number
+}) {
+  const res = await api.get<{
+    success: boolean
+    data: ChannelDimensionTokenUsage[]
+  }>('/api/data/groups/channel-tokens', { params })
   return res.data
 }
 

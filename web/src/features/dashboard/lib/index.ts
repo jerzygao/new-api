@@ -40,5 +40,7 @@ export {
   flowSankeyDatumValue,
   getFlowStages,
 } from './flow'
+export { buildChannelHeatmap } from './channel-heatmap'
+export type { ChannelHeatmapMatrix } from './channel-heatmap'
 export { safeDivide, calculateDashboardStats } from './stats'
 export { getPreviewText } from './text'
