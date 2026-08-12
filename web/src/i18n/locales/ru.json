@@ -4708,6 +4708,7 @@
     "Token share by model author since launch": "Доля токенов по автору модели с момента запуска",
     "Token unit": "Единица токенов",
     "Token usage by model since launch": "Использование токенов по моделям с момента запуска",
+    "Token Used": "Token Used",
     "Token-based": "На основе токенов",
     "Tokenizer": "Токенизатор",
     "tokens": "токены",
