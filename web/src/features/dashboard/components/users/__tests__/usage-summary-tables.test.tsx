@@ -70,9 +70,8 @@ await i18n.use(initReactI18next).init({
   },
 })
 
-const { SummaryTableCard, USER_COLUMNS, GROUP_COLUMNS } = await import(
-  '../usage-summary-tables'
-)
+const { SummaryTableCard, USER_COLUMNS, GROUP_COLUMNS } =
+  await import('../usage-summary-tables')
 const reactTestGlobals = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean
 }
@@ -156,7 +155,15 @@ describe('usage summary tables', () => {
       icon: null,
       columns: GROUP_COLUMNS,
       emptyText: 'No data',
-      rows: [{ use_group: 'vip', token_used: 75, quota: 750, count: 3, user_count: 2 }],
+      rows: [
+        {
+          use_group: 'vip',
+          token_used: 75,
+          quota: 750,
+          count: 3,
+          user_count: 2,
+        },
+      ],
       cellRenderer: (row, column) => {
         switch (column.key) {
           case 'use_group':
