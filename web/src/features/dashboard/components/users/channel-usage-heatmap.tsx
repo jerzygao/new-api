@@ -16,13 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { CSSProperties, ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Layers, Users } from 'lucide-react'
+import { type CSSProperties, type ReactNode, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { ChannelHeatmapMatrix } from '@/features/dashboard/lib'
+import {
+  getGroupChannelTokenUsage,
+  getUserChannelTokenUsage,
+} from '@/features/dashboard/api'
+import {
+  buildChannelHeatmap,
+  type ChannelHeatmapMatrix,
+} from '@/features/dashboard/lib'
 import { formatTokens } from '@/lib/format'
+import { getRollingDateRange } from '@/lib/time'
 
 export interface ChannelUsageHeatmapProps {
   titleKey: string
@@ -134,5 +144,79 @@ export function ChannelUsageHeatmap(props: ChannelUsageHeatmapProps) {
         </table>
       </div>
     </div>
+  )
+}
+
+export function UserChannelUsageHeatmap(props: {
+  selectedRange: number
+  topLimit: number
+}) {
+  const { t } = useTranslation()
+  const timeRange = useMemo(() => {
+    const { start, end } = getRollingDateRange(props.selectedRange)
+    return {
+      start_timestamp: Math.floor(start.getTime() / 1000),
+      end_timestamp: Math.floor(end.getTime() / 1000),
+    }
+  }, [props.selectedRange])
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard', 'user-channel-tokens', timeRange],
+    queryFn: () => getUserChannelTokenUsage(timeRange),
+    select: (res) => (res.success ? res.data : []),
+    staleTime: 60_000,
+  })
+  const rows = useMemo(() => data ?? [], [data])
+  const matrix = useMemo(
+    () => buildChannelHeatmap(rows, props.topLimit),
+    [rows, props.topLimit]
+  )
+
+  return (
+    <ChannelUsageHeatmap
+      titleKey='User Channel Token Usage'
+      icon={<Users />}
+      rowHeaderKey='Username'
+      matrix={matrix}
+      isLoading={isLoading}
+      emptyText={t('No data')}
+    />
+  )
+}
+
+export function GroupChannelUsageHeatmap(props: {
+  selectedRange: number
+  topLimit: number
+}) {
+  const { t } = useTranslation()
+  const timeRange = useMemo(() => {
+    const { start, end } = getRollingDateRange(props.selectedRange)
+    return {
+      start_timestamp: Math.floor(start.getTime() / 1000),
+      end_timestamp: Math.floor(end.getTime() / 1000),
+    }
+  }, [props.selectedRange])
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard', 'group-channel-tokens', timeRange],
+    queryFn: () => getGroupChannelTokenUsage(timeRange),
+    select: (res) => (res.success ? res.data : []),
+    staleTime: 60_000,
+  })
+  const rows = useMemo(() => data ?? [], [data])
+  const matrix = useMemo(
+    () => buildChannelHeatmap(rows, props.topLimit),
+    [rows, props.topLimit]
+  )
+
+  return (
+    <ChannelUsageHeatmap
+      titleKey='Group Channel Token Usage'
+      icon={<Layers />}
+      rowHeaderKey='Group'
+      matrix={matrix}
+      isLoading={isLoading}
+      emptyText={t('No data')}
+    />
   )
 }

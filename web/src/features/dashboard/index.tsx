@@ -407,6 +407,7 @@ export function Dashboard() {
               <Suspense fallback={<ModelChartsFallback />}>
                 <LazyUsageSummaryTables
                   selectedRange={userChartsFilters.selectedRange}
+                  topUserLimit={userChartsFilters.topUserLimit}
                 />
               </Suspense>
             </FadeIn>

@@ -33,6 +33,10 @@ import { formatNumber, formatQuota, formatTokens } from '@/lib/format'
 import { getRollingDateRange } from '@/lib/time'
 
 import { ChannelFilterSelect } from './channel-filter-select'
+import {
+  GroupChannelUsageHeatmap,
+  UserChannelUsageHeatmap,
+} from './channel-usage-heatmap'
 
 const TOP_LIMIT = 100
 
@@ -309,11 +313,24 @@ export function GroupSummaryTable({ selectedRange }: SummaryTableProps) {
   )
 }
 
-export function UsageSummaryTables({ selectedRange }: SummaryTableProps) {
+interface UsageSummaryTablesProps {
+  selectedRange: number
+  topUserLimit: number
+}
+
+export function UsageSummaryTables(props: UsageSummaryTablesProps) {
   return (
     <div className='mt-3 grid gap-3'>
-      <UserSummaryTable selectedRange={selectedRange} />
-      <GroupSummaryTable selectedRange={selectedRange} />
+      <UserSummaryTable selectedRange={props.selectedRange} />
+      <UserChannelUsageHeatmap
+        selectedRange={props.selectedRange}
+        topLimit={props.topUserLimit}
+      />
+      <GroupSummaryTable selectedRange={props.selectedRange} />
+      <GroupChannelUsageHeatmap
+        selectedRange={props.selectedRange}
+        topLimit={props.topUserLimit}
+      />
     </div>
   )
 }
