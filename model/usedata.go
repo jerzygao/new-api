@@ -213,3 +213,28 @@ func GetQuotaDataSummaryByGroup(startTime int64, endTime int64) (summaries []*Qu
 		Find(&summaries).Error
 	return summaries, err
 }
+
+// ResolveChannelNames 批量解析渠道名：内存缓存开启时走 CacheGetChannel，否则查 channels 表。
+// 已删除或解析不到的渠道不产生条目，由调用方决定展示回退（如 "Channel 3"）。
+func ResolveChannelNames(channelIDs []int) (map[int]string, error) {
+	nameByID := make(map[int]string, len(channelIDs))
+	if common.MemoryCacheEnabled {
+		for _, channelID := range channelIDs {
+			if channel, err := CacheGetChannel(channelID); err == nil {
+				nameByID[channelID] = channel.Name
+			}
+		}
+		return nameByID, nil
+	}
+	var channels []struct {
+		Id   int    `gorm:"column:id"`
+		Name string `gorm:"column:name"`
+	}
+	if err := DB.Table("channels").Select("id, name").Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
+		return nil, err
+	}
+	for _, channel := range channels {
+		nameByID[channel.Id] = channel.Name
+	}
+	return nameByID, nil
+}
