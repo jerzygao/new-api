@@ -35,12 +35,17 @@ export interface ChannelUsageHeatmapProps {
 
 const CELL_COLOR_BASE = '59, 130, 246'
 
-// 热力图单元格：数值格式化显示 + 背景色按 maxValue 归一化（0 值不着色）
-function heatmapCellStyle(value: number, maxValue: number): CSSProperties {
+// 热力图单元格：数值格式化显示 + 背景色按 maxValue 归一化
+// （0 值不着色；alpha 封顶 0.85，避免深蓝底 + 浅色文字在暗色模式下对比度不足）
+// oxlint-disable-next-line react/only-export-components -- 辅助函数需直接导出以便单元测试
+export function heatmapCellStyle(
+  value: number,
+  maxValue: number
+): CSSProperties {
   if (value <= 0 || maxValue <= 0) {
     return {}
   }
-  const ratio = Math.max(0.08, value / maxValue)
+  const ratio = Math.min(0.85, Math.max(0.08, value / maxValue))
   return {
     backgroundColor: `rgba(${CELL_COLOR_BASE}, ${ratio})`,
   }
@@ -78,12 +83,15 @@ export function ChannelUsageHeatmap(props: ChannelUsageHeatmapProps) {
   } else {
     body = props.matrix.rowLabels.map((rowLabel, rowIndex) => (
       <tr key={rowLabel} className='border-b last:border-b-0'>
-        <td className='px-3 py-2 font-medium sm:px-5'>{rowLabel}</td>
-        {props.matrix.columnLabels.map((label, colIndex) => {
+        <th scope='row' className='px-3 py-2 text-left font-medium sm:px-5'>
+          {rowLabel}
+        </th>
+        {props.matrix.columnLabels.map((_, colIndex) => {
           const value = props.matrix.cells[rowIndex]?.[colIndex] ?? 0
           return (
             <td
-              key={`${rowLabel}-${label}`}
+              // oxlint-disable-next-line react/no-array-index-key -- 渠道名可重复，label 作 key 会冲突
+              key={colIndex}
               className='px-3 py-2 text-center tabular-nums sm:px-5'
               style={heatmapCellStyle(value, props.matrix.maxValue)}
             >
@@ -110,9 +118,11 @@ export function ChannelUsageHeatmap(props: ChannelUsageHeatmapProps) {
               <th className='px-3 py-2 text-left font-medium sm:px-5'>
                 {t(props.rowHeaderKey)}
               </th>
-              {props.matrix.columnLabels.map((label) => (
+              {props.matrix.columnLabels.map((label, colIndex) => (
                 <th
-                  key={label}
+                  // oxlint-disable-next-line react/no-array-index-key -- 渠道名可重复，label 作 key 会冲突
+                  key={colIndex}
+                  scope='col'
                   className='px-3 py-2 text-center font-medium sm:px-5'
                 >
                   {label}
