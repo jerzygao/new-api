@@ -21,6 +21,7 @@ import { api } from '@/lib/api'
 import type {
   FlowQuotaDataItem,
   QuotaDataItem,
+  QuotaDataSummary,
   UptimeGroupResult,
 } from './types'
 
@@ -61,6 +62,30 @@ export async function getUserQuotaDataByUsers(params: {
 }) {
   const res = await api.get<{ success: boolean; data: QuotaDataItem[] }>(
     '/api/data/users',
+    { params }
+  )
+  return res.data
+}
+
+// Get per-user token usage summary (admin only)
+export async function getUserQuotaSummary(params: {
+  start_timestamp: number
+  end_timestamp: number
+}) {
+  const res = await api.get<{ success: boolean; data: QuotaDataSummary[] }>(
+    '/api/data/users/summary',
+    { params }
+  )
+  return res.data
+}
+
+// Get per-group token usage summary (admin only)
+export async function getGroupQuotaSummary(params: {
+  start_timestamp: number
+  end_timestamp: number
+}) {
+  const res = await api.get<{ success: boolean; data: QuotaDataSummary[] }>(
+    '/api/data/groups',
     { params }
   )
   return res.data
