@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -470,11 +471,22 @@ func updateAllChannelsBalance() error {
 		balance, err := updateChannelBalance(channel)
 		if err != nil {
 			continue
-		} else {
-			// err is nil & balance <= 0 means quota is used up
-			if balance <= 0 {
-				service.DisableChannel(*types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, "", channel.GetAutoBan()), "余额不足")
-			}
+		}
+		// err is nil & balance <= 0 means quota is used up
+		if balance <= 0 {
+			service.DisableChannel(*types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, "", channel.GetAutoBan()), "余额不足")
+		}
+		threshold := resolveBalanceAlertThreshold(channel, operation_setting.GetBalanceAlertThreshold())
+		switch checkChannelBalanceAlert(channel, balance, threshold) {
+		case balanceAlertNotify:
+			subject := fmt.Sprintf("渠道余额不足告警：通道「%s」（#%d）", channel.Name, channel.Id)
+			content := fmt.Sprintf("通道「%s」（#%d）剩余额度 $%.2f 低于告警阈值 $%.2f，请及时充值。", channel.Name, channel.Id, balance, threshold)
+			service.NotifyRootUser(fmt.Sprintf("%s_%d", dto.NotifyTypeBalanceAlert, channel.Id), subject, content)
+			channel.BalanceAlerted = true
+			channel.UpdateBalanceAlerted(true)
+		case balanceAlertRecover:
+			channel.BalanceAlerted = false
+			channel.UpdateBalanceAlerted(false)
 		}
 		time.Sleep(common.RequestInterval)
 	}
