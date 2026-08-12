@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 
 import type {
+  ChannelUsageSummary,
   FlowQuotaDataItem,
   QuotaDataItem,
   QuotaDataSummary,
@@ -71,6 +72,7 @@ export async function getUserQuotaDataByUsers(params: {
 export async function getUserQuotaSummary(params: {
   start_timestamp: number
   end_timestamp: number
+  channel_id?: number
 }) {
   const res = await api.get<{ success: boolean; data: QuotaDataSummary[] }>(
     '/api/data/users/summary',
@@ -83,9 +85,22 @@ export async function getUserQuotaSummary(params: {
 export async function getGroupQuotaSummary(params: {
   start_timestamp: number
   end_timestamp: number
+  channel_id?: number
 }) {
   const res = await api.get<{ success: boolean; data: QuotaDataSummary[] }>(
     '/api/data/groups',
+    { params }
+  )
+  return res.data
+}
+
+// Get per-channel token usage summary within a time range (admin only)
+export async function getChannelUsageSummaries(params: {
+  start_timestamp: number
+  end_timestamp: number
+}) {
+  const res = await api.get<{ success: boolean; data: ChannelUsageSummary[] }>(
+    '/api/data/channels',
     { params }
   )
   return res.data
