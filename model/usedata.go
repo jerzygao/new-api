@@ -181,3 +181,35 @@ func GetAllQuotaDates(startTime int64, endTime int64, username string) (quotaDat
 	err = DB.Table("quota_data").Select("model_name, sum(count) as count, sum(quota) as quota, sum(token_used) as token_used, created_at").Where("created_at >= ? and created_at <= ?", startTime, endTime).Group("model_name, created_at").Find(&quotaDatas).Error
 	return quotaDatas, err
 }
+
+// QuotaDataSummary 按人 / 按分组的用量汇总统计
+type QuotaDataSummary struct {
+	Username  string `json:"username"`
+	UseGroup  string `json:"use_group"`
+	TokenUsed int    `json:"token_used"`
+	Quota     int    `json:"quota"`
+	Count     int    `json:"count"`
+	UserCount int    `json:"user_count"` // 仅按分组统计时返回
+}
+
+// GetQuotaDataSummaryByUser 按用户名汇总 token 用量/额度/请求数，按 token_used 降序
+func GetQuotaDataSummaryByUser(startTime int64, endTime int64) (summaries []*QuotaDataSummary, err error) {
+	err = DB.Table("quota_data").
+		Select("username, sum(count) as count, sum(quota) as quota, sum(token_used) as token_used").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime).
+		Group("username").
+		Order("token_used desc").
+		Find(&summaries).Error
+	return summaries, err
+}
+
+// GetQuotaDataSummaryByGroup 按 use_group 汇总，附带去重用户数，按 token_used 降序
+func GetQuotaDataSummaryByGroup(startTime int64, endTime int64) (summaries []*QuotaDataSummary, err error) {
+	err = DB.Table("quota_data").
+		Select("use_group, count(distinct user_id) as user_count, sum(count) as count, sum(quota) as quota, sum(token_used) as token_used").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime).
+		Group("use_group").
+		Order("token_used desc").
+		Find(&summaries).Error
+	return summaries, err
+}
