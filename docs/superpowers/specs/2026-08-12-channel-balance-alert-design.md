@@ -59,9 +59,12 @@ GORM `AutoMigrate` 自动在 SQLite/MySQL/PostgreSQL 添加列，三库兼容。
 新增可测函数（纯逻辑，不依赖 gin）：
 
 ```go
-// checkChannelBalanceAlert 判断渠道余额是否需要告警/恢复。
-// 返回 true 表示本次检查需要发送告警（跨过阈值且未告警过）。
-func checkChannelBalanceAlert(channel *model.Channel, balance float64, threshold float64) bool
+// checkChannelBalanceAlert 根据渠道余额与阈值决定动作，返回三态 balanceAlertAction：
+//   - balance <= 0 或 threshold <= 0 → balanceAlertNone（耗尽走现有禁用逻辑；阈值 0 表示关闭）
+//   - 0 < balance < threshold 且未告警过 → balanceAlertNotify（需要发送告警）
+//   - 0 < balance < threshold 且已告警过 → balanceAlertNone（不重复通知）
+//   - balance >= threshold → 已告警过则 balanceAlertRecover，否则 balanceAlertNone
+func checkChannelBalanceAlert(channel *model.Channel, balance float64, threshold float64) balanceAlertAction
 ```
 
 状态机（在 `updateAllChannelsBalance()` 每渠道循环中，禁用判断之后）：
@@ -73,11 +76,15 @@ func checkChannelBalanceAlert(channel *model.Channel, balance float64, threshold
 | `0 < balance < threshold` 且 `channel.BalanceAlerted` | 已告警过，跳过（不刷屏） |
 | `balance >= threshold` | 清 `BalanceAlerted`（恢复；再次跨过阈值会重新告警） |
 
+渠道被禁用后手动重新启用且余额仍低于阈值时，不再重复告警，直到余额恢复到阈值以上再次跌破。
+
 threshold 解析优先级：渠道 `Setting.BalanceAlertThreshold != nil` → 用之（0 表示该渠道关闭告警）；否则全局 `BalanceAlertThreshold`（0 表示全局关闭）。
 
 告警内容：
 - subject：`渠道余额不足告警：通道「{Name}」（#{Id}）`
-- content：`通道「{Name}」（#{Id}）剩余额度 ${balance} 低于告警阈值 ${threshold}（渠道类型 {Type}，余额查询时间 {BalanceUpdatedTime}），请及时充值。`
+- content：`通道「{Name}」（#{Id}）剩余额度 ${balance} 低于告警阈值 ${threshold}（渠道类型：{TypeName}，查询时间：{BalanceUpdatedTime}），请及时充值。`
+  - {TypeName}：`constant.ChannelTypeNames[Type]` 映射的渠道类型名，未映射时回退 `strconv.Itoa(Type)`
+  - {BalanceUpdatedTime}：`time.Unix(BalanceUpdatedTime, 0).Format("2006-01-02 15:04:05")`（`BalanceUpdatedTime` 为 unix 秒）
 
 落库方式：告警置位/恢复通过 `channel.UpdateBalanceAlerted(alerted bool)` 落库，采用与 `model/channel.go` 的 `UpdateBalance`（`DB.Model(channel).Select(...).Updates(Channel{...})`）相同的显式 Select + Updates 模式，单独更新 `balance_alerted` 列。
 
@@ -103,9 +110,9 @@ threshold 解析优先级：渠道 `Setting.BalanceAlertThreshold != nil` → �
 ### 后端：controller/channel-billing 相关测试
 
 - `checkChannelBalanceAlert` 状态机三态：
-  - 未告警 + 低于阈值 → true（需告警）
-  - 已告警 + 低于阈值 → false（不重复）
-  - 任意状态 + 达到阈值 → 恢复（清标记，不告警）
+  - 未告警 + 低于阈值 → `balanceAlertNotify`（需告警）
+  - 已告警 + 低于阈值 → `balanceAlertNone`（不重复）
+  - 任意状态 + 达到阈值 → `balanceAlertRecover`（清标记，不告警）
 - 阈值解析优先级：渠道覆盖 > 全局；渠道 0 = 关闭；全局 0 = 关闭
 - 测试直接调用纯函数 + 内存 channel 结构体，不依赖 gin/DB（若函数需要 DB 落库则拆分：判断逻辑纯函数 + 落库在调用方）
 
@@ -121,3 +128,4 @@ threshold 解析优先级：渠道 `Setting.BalanceAlertThreshold != nil` → �
 - 多节点部署：`BalanceAlerted` 存 DB，避免多节点重复通知（存在极小竞态窗口，可接受）
 - 阈值单位 USD，与 `channel.Balance` 一致
 - 仅对支持余额查询的渠道类型生效（同现有 `updateChannelBalance` 支持范围）；多密钥渠道跳过（同现有逻辑）
+- 升级默认阈值 10 时，余额在 $0-$10 之间的渠道部署后会立即触发一次告警
