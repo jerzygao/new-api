@@ -60,10 +60,19 @@ const numericString = z.string().refine((value) => {
   return !Number.isNaN(Number(trimmed)) && Number(trimmed) >= 0
 }, 'Enter a non-negative number or leave empty')
 
+// Balance alert threshold must not be silently cleared: an empty value would
+// fail backend parsing while the UI reported success. Require a valid value.
+const balanceAlertThresholdString = z
+  .string()
+  .min(1, 'Enter a non-negative number')
+  .refine((value) => {
+    return !Number.isNaN(Number(value)) && Number(value) >= 0
+  }, 'Enter a non-negative number')
+
 const monitoringSchema = z.object({
   QuotaRemindThreshold: numericString,
   monitor_setting: z.object({
-    balance_alert_threshold: numericString,
+    balance_alert_threshold: balanceAlertThresholdString,
   }),
   perf_metrics_setting: z.object({
     enabled: z.boolean(),
@@ -234,7 +243,7 @@ export function MonitoringSettingsSection({
                   <Input
                     type='number'
                     min={0}
-                    step={1}
+                    step='0.01'
                     value={field.value}
                     onChange={(event) => field.onChange(event.target.value)}
                   />
