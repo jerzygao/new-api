@@ -243,6 +243,39 @@ func GetChannelUsageSummaries(startTime int64, endTime int64) (summaries []*Chan
 	return summaries, err
 }
 
+// ChannelDimensionTokenUsage 渠道维度下的用量（按人 / 按分组，一次只填一个维度）
+type ChannelDimensionTokenUsage struct {
+	Username    string `json:"username"`
+	UseGroup    string `json:"use_group"`
+	ChannelID   int    `json:"channel_id"`
+	ChannelName string `json:"channel_name"` // 名称由 controller 经 ResolveChannelNames 填充
+	TokenUsed   int    `json:"token_used"`
+}
+
+// GetChannelTokenUsageByUser 按 username + channel_id 汇总 token 用量，排除无渠道(0)行，按 token_used 降序
+func GetChannelTokenUsageByUser(startTime int64, endTime int64) (rows []*ChannelDimensionTokenUsage, err error) {
+	err = DB.Table("quota_data").
+		Select("username, channel_id, sum(token_used) as token_used").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime).
+		Where("channel_id > 0").
+		Group("username, channel_id").
+		Order("token_used desc").
+		Find(&rows).Error
+	return rows, err
+}
+
+// GetChannelTokenUsageByGroup 按 use_group + channel_id 汇总 token 用量，排除无渠道(0)行，按 token_used 降序
+func GetChannelTokenUsageByGroup(startTime int64, endTime int64) (rows []*ChannelDimensionTokenUsage, err error) {
+	err = DB.Table("quota_data").
+		Select("use_group, channel_id, sum(token_used) as token_used").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime).
+		Where("channel_id > 0").
+		Group("use_group, channel_id").
+		Order("token_used desc").
+		Find(&rows).Error
+	return rows, err
+}
+
 // ResolveChannelNames 批量解析渠道名：内存缓存开启时走 CacheGetChannel，否则查 channels 表。
 // 已删除或解析不到的渠道不产生条目，由调用方决定展示回退（如 "Channel 3"）。
 func ResolveChannelNames(channelIDs []int) (map[int]string, error) {
