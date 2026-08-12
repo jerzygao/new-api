@@ -28,15 +28,22 @@ import {
   getGroupQuotaSummary,
   getUserQuotaSummary,
 } from '@/features/dashboard/api'
-import { ChannelFilterSelect } from './channel-filter-select'
 import type { QuotaDataSummary } from '@/features/dashboard/types'
 import { formatNumber, formatQuota, formatTokens } from '@/lib/format'
 import { getRollingDateRange } from '@/lib/time'
 
+import { ChannelFilterSelect } from './channel-filter-select'
+
 const TOP_LIMIT = 100
 
 export interface SummaryColumn {
-  key: 'username' | 'use_group' | 'token_used' | 'quota' | 'count' | 'user_count'
+  key:
+    | 'username'
+    | 'use_group'
+    | 'token_used'
+    | 'quota'
+    | 'count'
+    | 'user_count'
   labelKey: string
   align?: 'left' | 'right'
 }
