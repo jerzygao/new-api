@@ -480,7 +480,12 @@ func updateAllChannelsBalance() error {
 		switch checkChannelBalanceAlert(channel, balance, threshold) {
 		case balanceAlertNotify:
 			subject := fmt.Sprintf("渠道余额不足告警：通道「%s」（#%d）", channel.Name, channel.Id)
-			content := fmt.Sprintf("通道「%s」（#%d）剩余额度 $%.2f 低于告警阈值 $%.2f，请及时充值。", channel.Name, channel.Id, balance, threshold)
+			channelTypeName, ok := constant.ChannelTypeNames[channel.Type]
+			if !ok {
+				channelTypeName = strconv.Itoa(channel.Type)
+			}
+			queryTime := time.Unix(channel.BalanceUpdatedTime, 0).Format("2006-01-02 15:04:05")
+			content := fmt.Sprintf("通道「%s」（#%d）剩余额度 $%.2f 低于告警阈值 $%.2f（渠道类型：%s，查询时间：%s），请及时充值。", channel.Name, channel.Id, balance, threshold, channelTypeName, queryTime)
 			service.NotifyRootUser(fmt.Sprintf("%s_%d", dto.NotifyTypeBalanceAlert, channel.Id), subject, content)
 			channel.BalanceAlerted = true
 			channel.UpdateBalanceAlerted(true)

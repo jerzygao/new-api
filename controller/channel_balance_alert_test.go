@@ -36,6 +36,9 @@ func setupBalanceAlertTestDB(t *testing.T) *gorm.DB {
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
+
+	oldDB := model.DB
+	oldLogDB := model.LOG_DB
 	model.DB = db
 	model.LOG_DB = db
 
@@ -46,6 +49,8 @@ func setupBalanceAlertTestDB(t *testing.T) *gorm.DB {
 		if err == nil {
 			_ = sqlDB.Close()
 		}
+		model.DB = oldDB
+		model.LOG_DB = oldLogDB
 	})
 	return db
 }
