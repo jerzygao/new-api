@@ -42,6 +42,14 @@ export interface QuotaDataSummary {
   user_count?: number
 }
 
+export interface ChannelUsageSummary {
+  channel_id?: number
+  channel_name?: string
+  token_used?: number
+  quota?: number
+  count?: number
+}
+
 export interface FlowQuotaDataItem {
   user_id?: number
   username?: string
