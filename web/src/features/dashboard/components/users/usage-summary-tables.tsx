@@ -18,15 +18,17 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { Layers, Users } from 'lucide-react'
-import { type ReactNode, useMemo } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  getChannelUsageSummaries,
   getGroupQuotaSummary,
   getUserQuotaSummary,
 } from '@/features/dashboard/api'
+import { ChannelFilterSelect } from './channel-filter-select'
 import type { QuotaDataSummary } from '@/features/dashboard/types'
 import { formatNumber, formatQuota, formatTokens } from '@/lib/format'
 import { getRollingDateRange } from '@/lib/time'
@@ -62,12 +64,21 @@ export interface SummaryTableCardProps {
   cellRenderer: (row: QuotaDataSummary, column: SummaryColumn) => ReactNode
   isLoading?: boolean
   emptyText: string
+  filter?: ReactNode
 }
 
 export function SummaryTableCard(props: SummaryTableCardProps) {
   const { t } = useTranslation()
-  const { titleKey, icon, columns, rows, cellRenderer, isLoading, emptyText } =
-    props
+  const {
+    titleKey,
+    icon,
+    columns,
+    rows,
+    cellRenderer,
+    isLoading,
+    emptyText,
+    filter,
+  } = props
 
   let tableBody: ReactNode
   if (isLoading) {
@@ -113,11 +124,14 @@ export function SummaryTableCard(props: SummaryTableCardProps) {
 
   return (
     <div className='overflow-hidden rounded-lg border'>
-      <div className='flex w-full items-center gap-2 border-b px-3 py-2 sm:px-5 sm:py-3'>
-        <IconBadge tone='info' size='sm'>
-          {icon}
-        </IconBadge>
-        <div className='text-sm font-semibold'>{t(titleKey)}</div>
+      <div className='flex w-full items-center justify-between gap-2 border-b px-3 py-2 sm:px-5 sm:py-3'>
+        <div className='flex items-center gap-2'>
+          <IconBadge tone='info' size='sm'>
+            {icon}
+          </IconBadge>
+          <div className='text-sm font-semibold'>{t(titleKey)}</div>
+        </div>
+        {filter}
       </div>
       <div className='max-h-96 overflow-auto'>
         <table className='w-full text-sm'>
@@ -156,9 +170,22 @@ export function UserSummaryTable({ selectedRange }: SummaryTableProps) {
     }
   }, [selectedRange])
 
+  const { data: channelData } = useQuery({
+    queryKey: ['dashboard', 'channel-summary', timeRange],
+    queryFn: () => getChannelUsageSummaries(timeRange),
+    select: (res) => (res.success ? res.data : []),
+    staleTime: 60_000,
+  })
+  const channels = useMemo(() => channelData ?? [], [channelData])
+  const [selectedChannel, setSelectedChannel] = useState(0)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', 'user-summary', timeRange],
-    queryFn: () => getUserQuotaSummary(timeRange),
+    queryKey: ['dashboard', 'user-summary', timeRange, selectedChannel],
+    queryFn: () =>
+      getUserQuotaSummary({
+        ...timeRange,
+        channel_id: selectedChannel || undefined,
+      }),
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
   })
@@ -172,6 +199,13 @@ export function UserSummaryTable({ selectedRange }: SummaryTableProps) {
       rows={rows}
       isLoading={isLoading}
       emptyText={t('No data')}
+      filter={
+        <ChannelFilterSelect
+          channels={channels}
+          value={selectedChannel}
+          onValueChange={setSelectedChannel}
+        />
+      }
       cellRenderer={(row, column) => {
         switch (column.key) {
           case 'username':
@@ -200,9 +234,22 @@ export function GroupSummaryTable({ selectedRange }: SummaryTableProps) {
     }
   }, [selectedRange])
 
+  const { data: channelData } = useQuery({
+    queryKey: ['dashboard', 'channel-summary', timeRange],
+    queryFn: () => getChannelUsageSummaries(timeRange),
+    select: (res) => (res.success ? res.data : []),
+    staleTime: 60_000,
+  })
+  const channels = useMemo(() => channelData ?? [], [channelData])
+  const [selectedChannel, setSelectedChannel] = useState(0)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', 'group-summary', timeRange],
-    queryFn: () => getGroupQuotaSummary(timeRange),
+    queryKey: ['dashboard', 'group-summary', timeRange, selectedChannel],
+    queryFn: () =>
+      getGroupQuotaSummary({
+        ...timeRange,
+        channel_id: selectedChannel || undefined,
+      }),
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
   })
@@ -216,6 +263,13 @@ export function GroupSummaryTable({ selectedRange }: SummaryTableProps) {
       rows={rows}
       isLoading={isLoading}
       emptyText={t('No data')}
+      filter={
+        <ChannelFilterSelect
+          channels={channels}
+          value={selectedChannel}
+          onValueChange={setSelectedChannel}
+        />
+      }
       cellRenderer={(row, column) => {
         switch (column.key) {
           case 'use_group':
