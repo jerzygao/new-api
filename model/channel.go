@@ -36,6 +36,7 @@ type Channel struct {
 	Other              string  `json:"other"`
 	Balance            float64 `json:"balance"` // in USD
 	BalanceUpdatedTime int64   `json:"balance_updated_time" gorm:"bigint"`
+	BalanceAlerted     bool    `json:"-"` // 余额告警已发送标记，用于"跨过阈值只通知一次，恢复后重新计数"
 	Models             string  `json:"models"`
 	Group              string  `json:"group" gorm:"type:varchar(64);default:'default'"`
 	UsedQuota          int64   `json:"used_quota" gorm:"bigint;default:0"`
@@ -605,6 +606,15 @@ func (channel *Channel) UpdateBalance(balance float64) {
 	}).Error
 	if err != nil {
 		common.SysLog(fmt.Sprintf("failed to update balance: channel_id=%d, error=%v", channel.Id, err))
+	}
+}
+
+func (channel *Channel) UpdateBalanceAlerted(alerted bool) {
+	err := DB.Model(channel).Select("balance_alerted").Updates(Channel{
+		BalanceAlerted: alerted,
+	}).Error
+	if err != nil {
+		common.SysLog(fmt.Sprintf("failed to update balance_alerted: channel_id=%d, error=%v", channel.Id, err))
 	}
 }
 
