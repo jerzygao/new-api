@@ -176,15 +176,21 @@ export function UserSummaryTable({ selectedRange }: SummaryTableProps) {
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
   })
-  const channels = useMemo(() => channelData ?? [], [channelData])
+  const channels = channelData ?? []
   const [selectedChannel, setSelectedChannel] = useState(0)
+  // 渠道选项随时间范围重建；选中渠道若已不在选项中则回落为全部渠道
+  const effectiveChannel =
+    selectedChannel !== 0 &&
+    channels.some((channel) => channel.channel_id === selectedChannel)
+      ? selectedChannel
+      : 0
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', 'user-summary', timeRange, selectedChannel],
+    queryKey: ['dashboard', 'user-summary', timeRange, effectiveChannel],
     queryFn: () =>
       getUserQuotaSummary({
         ...timeRange,
-        channel_id: selectedChannel || undefined,
+        channel_id: effectiveChannel || undefined,
       }),
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
@@ -202,7 +208,7 @@ export function UserSummaryTable({ selectedRange }: SummaryTableProps) {
       filter={
         <ChannelFilterSelect
           channels={channels}
-          value={selectedChannel}
+          value={effectiveChannel}
           onValueChange={setSelectedChannel}
         />
       }
@@ -240,15 +246,21 @@ export function GroupSummaryTable({ selectedRange }: SummaryTableProps) {
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
   })
-  const channels = useMemo(() => channelData ?? [], [channelData])
+  const channels = channelData ?? []
   const [selectedChannel, setSelectedChannel] = useState(0)
+  // 渠道选项随时间范围重建；选中渠道若已不在选项中则回落为全部渠道
+  const effectiveChannel =
+    selectedChannel !== 0 &&
+    channels.some((channel) => channel.channel_id === selectedChannel)
+      ? selectedChannel
+      : 0
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', 'group-summary', timeRange, selectedChannel],
+    queryKey: ['dashboard', 'group-summary', timeRange, effectiveChannel],
     queryFn: () =>
       getGroupQuotaSummary({
         ...timeRange,
-        channel_id: selectedChannel || undefined,
+        channel_id: effectiveChannel || undefined,
       }),
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
@@ -266,7 +278,7 @@ export function GroupSummaryTable({ selectedRange }: SummaryTableProps) {
       filter={
         <ChannelFilterSelect
           channels={channels}
-          value={selectedChannel}
+          value={effectiveChannel}
           onValueChange={setSelectedChannel}
         />
       }
