@@ -261,6 +261,7 @@ export const channelFormSchema = z
       .refine(isOptionalProxyURL, ERROR_MESSAGES.INVALID_PROXY),
     http_protocol: z.enum(['auto', 'http1']).optional(),
     http2_connection_shards: z.number().int().optional(),
+    balance_alert_threshold: z.number().min(0).optional(),
     pass_through_body_enabled: z.boolean().optional(),
     system_prompt: z.string().optional(),
     system_prompt_override: z.boolean().optional(),
@@ -429,6 +430,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   key_mode: 'append',
   // Channel extra settings
   force_format: false,
+  balance_alert_threshold: undefined,
   thinking_to_content: false,
   proxy: '',
   http_protocol: HTTP_PROTOCOL_AUTO,
@@ -476,6 +478,7 @@ export function transformChannelToFormDefaults(
     pass_through_body_enabled: false,
     system_prompt: '',
     system_prompt_override: false,
+    balance_alert_threshold: undefined as number | undefined,
   }
 
   if (channel.setting) {
@@ -494,6 +497,10 @@ export function transformChannelToFormDefaults(
         pass_through_body_enabled: parsed.pass_through_body_enabled || false,
         system_prompt: parsed.system_prompt || '',
         system_prompt_override: parsed.system_prompt_override || false,
+        balance_alert_threshold:
+          typeof parsed.balance_alert_threshold === 'number'
+            ? parsed.balance_alert_threshold
+            : undefined,
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -611,6 +618,7 @@ export function buildSettingJSON(formData: ChannelFormValues): string {
     pass_through_body_enabled: formData.pass_through_body_enabled || false,
     system_prompt: formData.system_prompt || '',
     system_prompt_override: formData.system_prompt_override || false,
+    balance_alert_threshold: formData.balance_alert_threshold,
   }
 
   const protocol = normalizeHttpProtocol(formData.http_protocol)
