@@ -125,7 +125,9 @@ describe('channel filter select', () => {
     const trigger = rendered.container.querySelector('button')
     assert.ok(trigger)
     await act(async () => trigger.click())
-    const options = [...document.querySelectorAll('[role="option"]')]
+    const options = [
+  ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+]
     const labels = options.map((el) => el.textContent ?? '')
     assert.ok(labels.includes('All Channels'))
     assert.ok(labels.includes('OpenAI'))
@@ -153,7 +155,9 @@ describe('channel filter select', () => {
     const trigger = rendered.container.querySelector('button')
     assert.ok(trigger)
     await act(async () => trigger.click())
-    const options = [...document.querySelectorAll('[role="option"]')]
+    const options = [
+  ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+]
     const allChannelsOption = options.find((el) =>
       (el.textContent ?? '').includes('All Channels')
     )
@@ -186,7 +190,9 @@ describe('channel filter select', () => {
     const trigger = rendered.container.querySelector('button')
     assert.ok(trigger)
     await act(async () => trigger.click())
-    const options = [...document.querySelectorAll('[role="option"]')]
+    const options = [
+  ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+]
     assert.equal(options.length, 1)
     assert.ok((options[0].textContent ?? '').includes('All Channels'))
 
