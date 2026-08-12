@@ -133,7 +133,7 @@ func GetUserFlowQuotaDates(c *gin.Context) {
 func GetQuotaDataSummaryByUser(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
-	summaries, err := model.GetQuotaDataSummaryByUser(startTimestamp, endTimestamp)
+	summaries, err := model.GetQuotaDataSummaryByUser(startTimestamp, endTimestamp, 0)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -149,7 +149,7 @@ func GetQuotaDataSummaryByUser(c *gin.Context) {
 func GetQuotaDataSummaryByGroup(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
-	summaries, err := model.GetQuotaDataSummaryByGroup(startTimestamp, endTimestamp)
+	summaries, err := model.GetQuotaDataSummaryByGroup(startTimestamp, endTimestamp, 0)
 	if err != nil {
 		common.ApiError(c, err)
 		return
