@@ -38,13 +38,19 @@ export interface ChannelFilterSelectProps {
 // 选项来自时间范围内有用量的渠道（后端已回退填充 channel_name）。
 export function ChannelFilterSelect(props: ChannelFilterSelectProps) {
   const { t } = useTranslation()
+  const options = props.channels
+    .filter((channel) => channel.channel_id != null)
+    .map((channel) => ({
+      id: channel.channel_id as number,
+      label: channel.channel_name ?? String(channel.channel_id),
+    }))
   return (
     <Select
       items={[
         { value: '0', label: t('All Channels') },
-        ...props.channels.map((channel) => ({
-          value: String(channel.channel_id ?? 0),
-          label: channel.channel_name ?? String(channel.channel_id ?? 0),
+        ...options.map((option) => ({
+          value: String(option.id),
+          label: option.label,
         })),
       ]}
       value={String(props.value)}
@@ -56,12 +62,9 @@ export function ChannelFilterSelect(props: ChannelFilterSelectProps) {
       <SelectContent alignItemWithTrigger={false}>
         <SelectGroup>
           <SelectItem value='0'>{t('All Channels')}</SelectItem>
-          {props.channels.map((channel) => (
-            <SelectItem
-              key={channel.channel_id ?? 0}
-              value={String(channel.channel_id ?? 0)}
-            >
-              {channel.channel_name ?? String(channel.channel_id ?? 0)}
+          {options.map((option) => (
+            <SelectItem key={option.id} value={String(option.id)}>
+              {option.label}
             </SelectItem>
           ))}
         </SelectGroup>
