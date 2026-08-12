@@ -149,6 +149,12 @@ func TestGetChannelUsageSummaries(t *testing.T) {
 	truncateTables(t)
 	createQuotaDataTestRows(t)
 	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+	// 插入一条无渠道(0)的历史行，CreatedAt 落在查询时间范围内，
+	// 验证「同时间范围内 channel_id=0 被排除」
+	require.NoError(t, DB.Create(&QuotaData{
+		UserID: 4, Username: "legacy", ModelName: "gpt-4o", UseGroup: "default",
+		TokenID: 9, ChannelID: 0, TokenUsed: 999, Count: 1, Quota: 9999, CreatedAt: base,
+	}).Error)
 
 	summaries, err := GetChannelUsageSummaries(base, base+3600)
 	require.NoError(t, err)
