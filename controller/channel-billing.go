@@ -503,3 +503,46 @@ func AutomaticallyUpdateChannels(frequency int) {
 		common.SysLog("channels update done")
 	}
 }
+
+// balanceAlertAction 描述本次余额检查应执行的动作
+type balanceAlertAction int
+
+const (
+	balanceAlertNone    balanceAlertAction = iota // 无动作（关闭/已告警/余额耗尽）
+	balanceAlertNotify                            // 跨过阈值且未告警过，需要发送告警
+	balanceAlertRecover                           // 余额恢复到阈值以上，清除告警标记
+)
+
+// resolveBalanceAlertThreshold 解析渠道余额告警阈值：
+// 渠道 Setting.BalanceAlertThreshold 非 nil 时用之（0 表示该渠道关闭），否则用全局阈值 globalThreshold。
+// 渠道配置非法时回退全局阈值。
+func resolveBalanceAlertThreshold(channel *model.Channel, globalThreshold float64) float64 {
+	if channel != nil && channel.Setting != nil && *channel.Setting != "" {
+		setting := channel.GetSetting()
+		if setting.BalanceAlertThreshold != nil {
+			return *setting.BalanceAlertThreshold
+		}
+	}
+	return globalThreshold
+}
+
+// checkChannelBalanceAlert 根据渠道余额与阈值决定动作：
+//   - balance <= 0 或 threshold <= 0 → balanceAlertNone（耗尽走现有禁用逻辑；阈值 0 表示关闭）
+//   - 0 < balance < threshold 且未告警过 → balanceAlertNotify
+//   - 0 < balance < threshold 且已告警过 → balanceAlertNone（不重复通知）
+//   - balance >= threshold → 已告警过则 balanceAlertRecover，否则 balanceAlertNone
+func checkChannelBalanceAlert(channel *model.Channel, balance float64, threshold float64) balanceAlertAction {
+	if threshold <= 0 || balance <= 0 {
+		return balanceAlertNone
+	}
+	if balance < threshold {
+		if channel.BalanceAlerted {
+			return balanceAlertNone
+		}
+		return balanceAlertNotify
+	}
+	if channel.BalanceAlerted {
+		return balanceAlertRecover
+	}
+	return balanceAlertNone
+}
