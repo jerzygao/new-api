@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -133,7 +134,8 @@ func GetUserFlowQuotaDates(c *gin.Context) {
 func GetQuotaDataSummaryByUser(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
-	summaries, err := model.GetQuotaDataSummaryByUser(startTimestamp, endTimestamp, 0)
+	channelID, _ := strconv.ParseInt(c.Query("channel_id"), 10, 64)
+	summaries, err := model.GetQuotaDataSummaryByUser(startTimestamp, endTimestamp, int(channelID))
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -149,7 +151,8 @@ func GetQuotaDataSummaryByUser(c *gin.Context) {
 func GetQuotaDataSummaryByGroup(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
-	summaries, err := model.GetQuotaDataSummaryByGroup(startTimestamp, endTimestamp, 0)
+	channelID, _ := strconv.ParseInt(c.Query("channel_id"), 10, 64)
+	summaries, err := model.GetQuotaDataSummaryByGroup(startTimestamp, endTimestamp, int(channelID))
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -160,4 +163,35 @@ func GetQuotaDataSummaryByGroup(c *gin.Context) {
 		"data":    summaries,
 	})
 	return
+}
+
+func GetChannelUsageSummaries(c *gin.Context) {
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	summaries, err := model.GetChannelUsageSummaries(startTimestamp, endTimestamp)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	channelIDs := make([]int, 0, len(summaries))
+	for _, summary := range summaries {
+		channelIDs = append(channelIDs, summary.ChannelID)
+	}
+	nameByID, err := model.ResolveChannelNames(channelIDs)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	for _, summary := range summaries {
+		if name := nameByID[summary.ChannelID]; name != "" {
+			summary.ChannelName = name
+			continue
+		}
+		summary.ChannelName = fmt.Sprintf("Channel %d", summary.ChannelID)
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    summaries,
+	})
 }
