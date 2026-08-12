@@ -142,6 +142,28 @@ describe('channel filter select', () => {
     await unmountSelect(rendered)
   })
 
+  test('selecting All Channels again reports 0', async () => {
+    const picked: number[] = []
+    const rendered = await renderSelect({
+      channels: [{ channel_id: 1, channel_name: 'OpenAI' }],
+      value: 1,
+      onValueChange: (channelId) => picked.push(channelId),
+    })
+
+    const trigger = rendered.container.querySelector('button')
+    assert.ok(trigger)
+    await act(async () => trigger.click())
+    const options = [...document.querySelectorAll('[role="option"]')]
+    const allChannelsOption = options.find((el) =>
+      (el.textContent ?? '').includes('All Channels')
+    )
+    assert.ok(allChannelsOption)
+    await act(async () => allChannelsOption.click())
+    assert.deepEqual(picked, [0])
+
+    await unmountSelect(rendered)
+  })
+
   test('shows the selected channel name on the trigger', async () => {
     const rendered = await renderSelect({
       channels: [{ channel_id: 2, channel_name: 'Claude' }],
