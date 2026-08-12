@@ -107,6 +107,12 @@ const LazyUserCharts = lazy(() =>
   }))
 )
 
+const LazyUsageSummaryTables = lazy(() =>
+  import('./components/users/usage-summary-tables').then((m) => ({
+    default: m.UsageSummaryTables,
+  }))
+)
+
 const LazyFlowCharts = lazy(() =>
   import('./components/flow/flow-charts').then((m) => ({
     default: m.FlowCharts,
@@ -396,6 +402,11 @@ export function Dashboard() {
                 <LazyUserCharts
                   filters={userChartsFilters}
                   onFiltersChange={setUserChartsFilters}
+                />
+              </Suspense>
+              <Suspense fallback={<ModelChartsFallback />}>
+                <LazyUsageSummaryTables
+                  selectedRange={userChartsFilters.selectedRange}
                 />
               </Suspense>
             </FadeIn>
