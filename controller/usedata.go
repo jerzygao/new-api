@@ -195,3 +195,69 @@ func GetChannelUsageSummaries(c *gin.Context) {
 		"data":    summaries,
 	})
 }
+
+// fillChannelDimensionNames 批量填充渠道名：先收集去重 channel_id，经 ResolveChannelNames 解析，缺失回退 "Channel {{id}}"
+func fillChannelDimensionNames(rows []*model.ChannelDimensionTokenUsage) error {
+	seen := make(map[int]struct{})
+	channelIDs := make([]int, 0, len(rows))
+	for _, row := range rows {
+		if _, ok := seen[row.ChannelID]; ok {
+			continue
+		}
+		seen[row.ChannelID] = struct{}{}
+		channelIDs = append(channelIDs, row.ChannelID)
+	}
+	if len(channelIDs) == 0 {
+		return nil
+	}
+	nameByID, err := model.ResolveChannelNames(channelIDs)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if name := nameByID[row.ChannelID]; name != "" {
+			row.ChannelName = name
+			continue
+		}
+		row.ChannelName = fmt.Sprintf("Channel %d", row.ChannelID)
+	}
+	return nil
+}
+
+func GetChannelTokenUsageByUser(c *gin.Context) {
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	rows, err := model.GetChannelTokenUsageByUser(startTimestamp, endTimestamp)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if err := fillChannelDimensionNames(rows); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    rows,
+	})
+}
+
+func GetChannelTokenUsageByGroup(c *gin.Context) {
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	rows, err := model.GetChannelTokenUsageByGroup(startTimestamp, endTimestamp)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if err := fillChannelDimensionNames(rows); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    rows,
+	})
+}
