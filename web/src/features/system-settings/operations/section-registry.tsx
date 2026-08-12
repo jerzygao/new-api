@@ -47,6 +47,9 @@ const OPERATIONS_SECTIONS = [
       <MonitoringSettingsSection
         defaultValues={{
           QuotaRemindThreshold: settings.QuotaRemindThreshold,
+          'monitor_setting.balance_alert_threshold': String(
+            settings['monitor_setting.balance_alert_threshold'] ?? 10
+          ),
           'perf_metrics_setting.enabled':
             settings['perf_metrics_setting.enabled'] ?? true,
           'perf_metrics_setting.flush_interval':
