@@ -344,6 +344,7 @@ function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
     (values.http_protocol && values.http_protocol !== 'auto') ||
     (values.http2_connection_shards != null &&
       values.http2_connection_shards > 1) ||
+    values.balance_alert_threshold != null ||
     values.claude_beta_query ||
     values.upstream_model_update_check_enabled ||
     values.upstream_model_update_auto_sync_enabled ||
@@ -752,6 +753,9 @@ export function ChannelMutateDrawer({
   const currentProxy = form.watch('proxy')
   const currentHttpProtocol = form.watch('http_protocol')
   const currentHttp2ConnectionShards = form.watch('http2_connection_shards')
+  const currentBalanceAlertThreshold = form.watch(
+    'balance_alert_threshold'
+  )
   const currentSystemPrompt = form.watch('system_prompt')
   const currentSystemPromptOverride = form.watch('system_prompt_override')
   const currentAllowServiceTier = form.watch('allow_service_tier')
@@ -1023,7 +1027,8 @@ export function ChannelMutateDrawer({
     currentSystemPrompt?.trim() ||
     currentSystemPromptOverride ||
     (currentHttpProtocol && currentHttpProtocol !== 'auto') ||
-    (currentHttp2ConnectionShards != null && currentHttp2ConnectionShards > 1)
+    (currentHttp2ConnectionShards != null && currentHttp2ConnectionShards > 1) ||
+    currentBalanceAlertThreshold != null
   )
   let fieldPassthroughConfigured = false
   if (currentType === 1 || currentType === 57) {
@@ -4163,6 +4168,41 @@ export function ChannelMutateDrawer({
                                       <Switch
                                         checked={field.value}
                                         onCheckedChange={field.onChange}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name='balance_alert_threshold'
+                                render={({ field }) => (
+                                  <FormItem className='flex items-center justify-between px-4 py-3'>
+                                    <div className='space-y-0.5'>
+                                      <FormLabel>
+                                        {t('Balance Alert Threshold')}
+                                      </FormLabel>
+                                      <FormDescription>
+                                        {t(
+                                          'Alert when the channel balance (USD) drops below this value. Leave empty to use the global default, 0 to disable.'
+                                        )}
+                                      </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                      <Input
+                                        type='number'
+                                        min={0}
+                                        step='0.01'
+                                        value={field.value ?? ''}
+                                        onChange={(e) =>
+                                          field.onChange(
+                                            e.target.value === ''
+                                              ? undefined
+                                              : Number(e.target.value)
+                                          )
+                                        }
+                                        className='w-32'
                                       />
                                     </FormControl>
                                   </FormItem>
