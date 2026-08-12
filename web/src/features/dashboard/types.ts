@@ -50,6 +50,14 @@ export interface ChannelUsageSummary {
   count?: number
 }
 
+export interface ChannelDimensionTokenUsage {
+  username?: string
+  use_group?: string
+  channel_id?: number
+  channel_name?: string
+  token_used?: number
+}
+
 export interface FlowQuotaDataItem {
   user_id?: number
   username?: string
