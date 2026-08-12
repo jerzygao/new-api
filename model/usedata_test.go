@@ -177,3 +177,81 @@ func TestGetChannelUsageSummaries(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, emptySummaries)
 }
+
+func TestGetChannelTokenUsageByUser(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	rows, err := GetChannelTokenUsageByUser(base, base+3600)
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+
+	// 按 token_used 降序：alice/ch1(300) > bob/ch1(50) > carol/ch2(25)
+	assert.Equal(t, "alice", rows[0].Username)
+	assert.Equal(t, 1, rows[0].ChannelID)
+	assert.Equal(t, 300, rows[0].TokenUsed)
+
+	assert.Equal(t, "bob", rows[1].Username)
+	assert.Equal(t, 1, rows[1].ChannelID)
+	assert.Equal(t, 50, rows[1].TokenUsed)
+
+	assert.Equal(t, "carol", rows[2].Username)
+	assert.Equal(t, 2, rows[2].ChannelID)
+	assert.Equal(t, 25, rows[2].TokenUsed)
+}
+
+func TestGetChannelTokenUsageByUserExcludesZeroChannel(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+	// 插入一条落在查询时间范围内的无渠道(0)行，验证被排除
+	require.NoError(t, DB.Create(&QuotaData{
+		UserID: 4, Username: "legacy", ModelName: "gpt-4o", CreatedAt: base, UseGroup: "default",
+		TokenID: 9, ChannelID: 0, TokenUsed: 999, Count: 1, Quota: 9999,
+	}).Error)
+
+	rows, err := GetChannelTokenUsageByUser(base, base+3600)
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	for _, row := range rows {
+		assert.NotEqual(t, 999, row.TokenUsed)
+	}
+}
+
+func TestGetChannelTokenUsageByGroup(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	rows, err := GetChannelTokenUsageByGroup(base, base+3600)
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+
+	// 按 token_used 降序：default/ch1(300) > vip/ch1(50) > vip/ch2(25)
+	assert.Equal(t, "default", rows[0].UseGroup)
+	assert.Equal(t, 1, rows[0].ChannelID)
+	assert.Equal(t, 300, rows[0].TokenUsed)
+
+	assert.Equal(t, "vip", rows[1].UseGroup)
+	assert.Equal(t, 1, rows[1].ChannelID)
+	assert.Equal(t, 50, rows[1].TokenUsed)
+
+	assert.Equal(t, "vip", rows[2].UseGroup)
+	assert.Equal(t, 2, rows[2].ChannelID)
+	assert.Equal(t, 25, rows[2].TokenUsed)
+}
+
+func TestGetChannelTokenUsageEmptyRange(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	userRows, err := GetChannelTokenUsageByUser(base+7200, base+7200)
+	require.NoError(t, err)
+	assert.Empty(t, userRows)
+
+	groupRows, err := GetChannelTokenUsageByGroup(base+7200, base+7200)
+	require.NoError(t, err)
+	assert.Empty(t, groupRows)
+}
