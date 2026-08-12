@@ -193,22 +193,51 @@ type QuotaDataSummary struct {
 }
 
 // GetQuotaDataSummaryByUser 按用户名汇总 token 用量/额度/请求数，按 token_used 降序
-func GetQuotaDataSummaryByUser(startTime int64, endTime int64) (summaries []*QuotaDataSummary, err error) {
-	err = DB.Table("quota_data").
+// channelID > 0 时只统计该渠道的用量
+func GetQuotaDataSummaryByUser(startTime int64, endTime int64, channelID int) (summaries []*QuotaDataSummary, err error) {
+	query := DB.Table("quota_data").
 		Select("username, sum(count) as count, sum(quota) as quota, sum(token_used) as token_used").
-		Where("created_at >= ? and created_at <= ?", startTime, endTime).
-		Group("username").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime)
+	if channelID > 0 {
+		query = query.Where("channel_id = ?", channelID)
+	}
+	err = query.Group("username").
 		Order("token_used desc").
 		Find(&summaries).Error
 	return summaries, err
 }
 
 // GetQuotaDataSummaryByGroup 按 use_group 汇总，附带去重用户数，按 token_used 降序
-func GetQuotaDataSummaryByGroup(startTime int64, endTime int64) (summaries []*QuotaDataSummary, err error) {
-	err = DB.Table("quota_data").
+// channelID > 0 时只统计该渠道的用量
+func GetQuotaDataSummaryByGroup(startTime int64, endTime int64, channelID int) (summaries []*QuotaDataSummary, err error) {
+	query := DB.Table("quota_data").
 		Select("use_group, count(distinct user_id) as user_count, sum(count) as count, sum(quota) as quota, sum(token_used) as token_used").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime)
+	if channelID > 0 {
+		query = query.Where("channel_id = ?", channelID)
+	}
+	err = query.Group("use_group").
+		Order("token_used desc").
+		Find(&summaries).Error
+	return summaries, err
+}
+
+// ChannelUsageSummary 按渠道汇总的用量统计
+type ChannelUsageSummary struct {
+	ChannelID   int    `json:"channel_id"`
+	ChannelName string `json:"channel_name"` // 名称由 controller 经 ResolveChannelNames 填充
+	TokenUsed   int    `json:"token_used"`
+	Quota       int    `json:"quota"`
+	Count       int    `json:"count"`
+}
+
+// GetChannelUsageSummaries 按 channel_id 汇总时间范围内的用量，排除无渠道(0)行，按 token_used 降序
+func GetChannelUsageSummaries(startTime int64, endTime int64) (summaries []*ChannelUsageSummary, err error) {
+	err = DB.Table("quota_data").
+		Select("channel_id, sum(count) as count, sum(quota) as quota, sum(token_used) as token_used").
 		Where("created_at >= ? and created_at <= ?", startTime, endTime).
-		Group("use_group").
+		Where("channel_id > 0").
+		Group("channel_id").
 		Order("token_used desc").
 		Find(&summaries).Error
 	return summaries, err
