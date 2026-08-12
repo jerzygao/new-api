@@ -66,7 +66,8 @@ await i18n.use(initReactI18next).init({
   },
 })
 
-const { ChannelUsageHeatmap } = await import('../channel-usage-heatmap')
+const { ChannelUsageHeatmap, heatmapCellStyle } =
+  await import('../channel-usage-heatmap')
 const reactTestGlobals = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean
 }
@@ -163,7 +164,24 @@ describe('channel usage heatmap', () => {
     // loading 时渲染骨架而非空态
     const text = textOf(rendered)
     assert.ok(!text.includes('No data'))
+    // 5 行骨架行
+    assert.equal(rendered.container.querySelectorAll('tbody tr').length, 5)
 
     await unmountCard(rendered)
+  })
+})
+
+describe('heatmapCellStyle', () => {
+  test('scales alpha by value ratio with a floor', () => {
+    assert.deepEqual(heatmapCellStyle(0, 500), {})
+    assert.deepEqual(heatmapCellStyle(500, 500), {
+      backgroundColor: 'rgba(59, 130, 246, 0.85)',
+    })
+    // 最小值下限 0.08；低于 8% 的值用 0.08
+    assert.deepEqual(heatmapCellStyle(10, 500), {
+      backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    })
+    // maxValue <= 0 不着色
+    assert.deepEqual(heatmapCellStyle(100, 0), {})
   })
 })
