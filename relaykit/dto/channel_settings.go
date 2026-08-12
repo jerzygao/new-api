@@ -23,6 +23,8 @@ type ChannelSettings struct {
 	// HTTP2ConnectionShards spreads HTTP/2 traffic across N independent transports
 	// (1-8). Zero/unset means 1. Ignored when HTTPProtocol is "http1".
 	HTTP2ConnectionShards int `json:"http2_connection_shards,omitempty"`
+	// BalanceAlertThreshold 余额告警阈值（USD）。nil=用全局默认；0=该渠道关闭告警；>0=覆盖全局阈值
+	BalanceAlertThreshold *float64 `json:"balance_alert_threshold,omitempty"`
 }
 
 const (
