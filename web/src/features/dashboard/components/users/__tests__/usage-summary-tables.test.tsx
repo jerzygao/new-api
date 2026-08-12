@@ -190,4 +190,20 @@ describe('usage summary tables', () => {
 
     await unmountCard(rendered)
   })
+
+  test('renders the optional filter node in the card header', async () => {
+    const rendered = await renderCard({
+      titleKey: 'User Token Usage Ranking',
+      icon: null,
+      columns: USER_COLUMNS,
+      emptyText: 'No data',
+      rows: [],
+      cellRenderer: () => '-',
+      filter: <span>filter-ui</span>,
+    })
+
+    assert.ok(textOf(rendered).includes('filter-ui'))
+
+    await unmountCard(rendered)
+  })
 })
