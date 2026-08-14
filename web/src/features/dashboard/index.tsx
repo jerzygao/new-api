@@ -119,6 +119,14 @@ const LazyFlowCharts = lazy(() =>
   }))
 )
 
+const LazyChannelPerformancePanel = lazy(() =>
+  import('./components/channel-performance/channel-performance-panel').then(
+    (m) => ({
+      default: m.ChannelPerformancePanel,
+    })
+  )
+)
+
 function LogStatCardsFallback() {
   return (
     <div className='overflow-hidden rounded-lg border'>
@@ -195,6 +203,9 @@ const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
   users: {
     titleKey: 'User Analytics',
   },
+  'channel-performance': {
+    titleKey: 'Channel Performance',
+  },
 }
 
 export function Dashboard() {
@@ -254,7 +265,10 @@ export function Dashboard() {
   const visibleSections = useMemo(
     () =>
       DASHBOARD_SECTION_IDS.filter(
-        (section) => section !== 'overview' && (section !== 'users' || isAdmin)
+        (section) =>
+          section !== 'overview' &&
+          ((section !== 'users' && section !== 'channel-performance') ||
+            isAdmin)
       ),
     [isAdmin]
   )
@@ -419,6 +433,13 @@ export function Dashboard() {
                   filters={modelFilters}
                   sensitiveVisible={flowSensitiveVisible}
                 />
+              </Suspense>
+            </FadeIn>
+          )}
+          {activeSection === 'channel-performance' && (
+            <FadeIn>
+              <Suspense fallback={<ModelChartsFallback />}>
+                <LazyChannelPerformancePanel />
               </Suspense>
             </FadeIn>
           )}

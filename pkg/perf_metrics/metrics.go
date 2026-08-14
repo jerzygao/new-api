@@ -10,6 +10,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	channelperf "github.com/QuantumNous/new-api/pkg/channel_perf"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/perf_metrics_setting"
 )
@@ -52,6 +53,7 @@ func RecordRelaySample(info *relaycommon.RelayInfo, success bool, outputTokens i
 		OutputTokens: outputTokens,
 		GenerationMs: generationMs,
 	})
+	channelperf.RecordRelaySample(info, success, outputTokens)
 }
 
 func Record(sample Sample) {
