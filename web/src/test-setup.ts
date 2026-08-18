@@ -22,6 +22,42 @@ import i18next from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { afterEach, beforeAll } from 'vitest'
 
+// vitest's jsdom exposes `localStorage`/`sessionStorage` as non-functional
+// empty objects (no URL/origin), which breaks zustand `persist` — e.g. the
+// system-config-store — with "storage.setItem is not a function". Install a
+// real, Map-backed Storage shim only when the global lacks a working setItem.
+function ensureStorage(name: 'localStorage' | 'sessionStorage'): void {
+  const current = (globalThis as unknown as Record<string, unknown>)[name] as
+    | Storage
+    | undefined
+  if (current && typeof current.setItem === 'function') return
+  const entries = new Map<string, string>()
+  const shim: Storage = {
+    getItem: (key) => entries.get(key) ?? null,
+    setItem: (key, value) => {
+      entries.set(key, String(value))
+    },
+    removeItem: (key) => {
+      entries.delete(key)
+    },
+    clear: () => entries.clear(),
+    key: (index) => [...entries.keys()][index] ?? null,
+    get length() {
+      return entries.size
+    },
+  }
+  try {
+    Object.defineProperty(globalThis, name, {
+      configurable: true,
+      value: shim,
+    })
+  } catch {
+    Object.assign(current ?? {}, shim)
+  }
+}
+ensureStorage('localStorage')
+ensureStorage('sessionStorage')
+
 beforeAll(async () => {
   await i18next.use(initReactI18next).init({
     lng: 'en',
