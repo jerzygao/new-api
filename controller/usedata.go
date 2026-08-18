@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -27,6 +28,32 @@ func parseFlowQuotaTimeRange(c *gin.Context) (int64, int64, bool) {
 		return 0, 0, false
 	}
 	return startTimestamp, endTimestamp, true
+}
+
+// parseUserIDs 解析逗号分隔的 user_ids 查询参数为 int 切片。
+// 空串或缺失返回 nil（不过滤）；遇到非正整数 token 返回错误。
+func parseUserIDs(raw string) ([]int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	parts := strings.Split(raw, ",")
+	ids := make([]int, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.Atoi(part)
+		if err != nil || id <= 0 {
+			return nil, fmt.Errorf("invalid user_ids: %s", part)
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	return ids, nil
 }
 
 func GetAllQuotaDates(c *gin.Context) {
@@ -135,7 +162,12 @@ func GetQuotaDataSummaryByUser(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	channelID, _ := strconv.ParseInt(c.Query("channel_id"), 10, 64)
-	summaries, err := model.GetQuotaDataSummaryByUser(startTimestamp, endTimestamp, int(channelID))
+	userIDs, err := parseUserIDs(c.Query("user_ids"))
+	if err != nil {
+		common.ApiErrorMsg(c, err.Error())
+		return
+	}
+	summaries, err := model.GetQuotaDataSummaryByUser(startTimestamp, endTimestamp, int(channelID), userIDs)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -227,7 +259,12 @@ func fillChannelDimensionNames(rows []*model.ChannelDimensionTokenUsage) error {
 func GetChannelTokenUsageByUser(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
-	rows, err := model.GetChannelTokenUsageByUser(startTimestamp, endTimestamp)
+	userIDs, err := parseUserIDs(c.Query("user_ids"))
+	if err != nil {
+		common.ApiErrorMsg(c, err.Error())
+		return
+	}
+	rows, err := model.GetChannelTokenUsageByUser(startTimestamp, endTimestamp, userIDs)
 	if err != nil {
 		common.ApiError(c, err)
 		return

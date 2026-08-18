@@ -193,13 +193,16 @@ type QuotaDataSummary struct {
 }
 
 // GetQuotaDataSummaryByUser 按用户名汇总 token 用量/额度/请求数，按 token_used 降序
-// channelID > 0 时只统计该渠道的用量
-func GetQuotaDataSummaryByUser(startTime int64, endTime int64, channelID int) (summaries []*QuotaDataSummary, err error) {
+// channelID > 0 时只统计该渠道的用量；userIDs 非空时只统计这些用户
+func GetQuotaDataSummaryByUser(startTime int64, endTime int64, channelID int, userIDs []int) (summaries []*QuotaDataSummary, err error) {
 	query := DB.Table("quota_data").
 		Select("username, sum(count) as count, sum(quota) as quota, sum(token_used) as token_used").
 		Where("created_at >= ? and created_at <= ?", startTime, endTime)
 	if channelID > 0 {
 		query = query.Where("channel_id = ?", channelID)
+	}
+	if len(userIDs) > 0 {
+		query = query.Where("user_id IN ?", userIDs)
 	}
 	err = query.Group("username").
 		Order("token_used desc").
@@ -253,12 +256,16 @@ type ChannelDimensionTokenUsage struct {
 }
 
 // GetChannelTokenUsageByUser 按 username + channel_id 汇总 token 用量，排除无渠道(0)行，按 token_used 降序
-func GetChannelTokenUsageByUser(startTime int64, endTime int64) (rows []*ChannelDimensionTokenUsage, err error) {
-	err = DB.Table("quota_data").
+// userIDs 非空时只统计这些用户
+func GetChannelTokenUsageByUser(startTime int64, endTime int64, userIDs []int) (rows []*ChannelDimensionTokenUsage, err error) {
+	query := DB.Table("quota_data").
 		Select("username, channel_id, sum(token_used) as token_used").
 		Where("created_at >= ? and created_at <= ?", startTime, endTime).
-		Where("channel_id > 0").
-		Group("username, channel_id").
+		Where("channel_id > 0")
+	if len(userIDs) > 0 {
+		query = query.Where("user_id IN ?", userIDs)
+	}
+	err = query.Group("username, channel_id").
 		Order("token_used desc").
 		Find(&rows).Error
 	return rows, err

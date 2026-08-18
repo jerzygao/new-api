@@ -31,7 +31,7 @@ func TestGetQuotaDataSummaryByUser(t *testing.T) {
 	createQuotaDataTestRows(t)
 	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
 
-	summaries, err := GetQuotaDataSummaryByUser(base, base+3600, 0)
+	summaries, err := GetQuotaDataSummaryByUser(base, base+3600, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, summaries, 3)
 
@@ -49,7 +49,7 @@ func TestGetQuotaDataSummaryByUser(t *testing.T) {
 	assert.Equal(t, 25, summaries[2].TokenUsed)
 
 	// 时间范围过滤：只查第一小时，排除第二小时的 carol
-	rangeSummaries, err := GetQuotaDataSummaryByUser(base, base, 0)
+	rangeSummaries, err := GetQuotaDataSummaryByUser(base, base, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, rangeSummaries, 2)
 }
@@ -80,7 +80,7 @@ func TestGetQuotaDataSummaryByGroup(t *testing.T) {
 func TestGetQuotaDataSummaryEmpty(t *testing.T) {
 	truncateTables(t)
 
-	userSummaries, err := GetQuotaDataSummaryByUser(0, 0, 0)
+	userSummaries, err := GetQuotaDataSummaryByUser(0, 0, 0, nil)
 	require.NoError(t, err)
 	assert.Empty(t, userSummaries)
 
@@ -94,7 +94,7 @@ func TestGetQuotaDataSummaryByUserWithChannelFilter(t *testing.T) {
 	createQuotaDataTestRows(t)
 	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
 
-	summaries, err := GetQuotaDataSummaryByUser(base, base+3600, 1)
+	summaries, err := GetQuotaDataSummaryByUser(base, base+3600, 1, nil)
 	require.NoError(t, err)
 	require.Len(t, summaries, 2)
 
@@ -107,14 +107,14 @@ func TestGetQuotaDataSummaryByUserWithChannelFilter(t *testing.T) {
 	assert.Equal(t, "bob", summaries[1].Username)
 	assert.Equal(t, 50, summaries[1].TokenUsed)
 
-	channel2Summaries, err := GetQuotaDataSummaryByUser(base, base+3600, 2)
+	channel2Summaries, err := GetQuotaDataSummaryByUser(base, base+3600, 2, nil)
 	require.NoError(t, err)
 	require.Len(t, channel2Summaries, 1)
 	assert.Equal(t, "carol", channel2Summaries[0].Username)
 	assert.Equal(t, 25, channel2Summaries[0].TokenUsed)
 
 	// 不存在的渠道返回空
-	missingSummaries, err := GetQuotaDataSummaryByUser(base, base+3600, 999)
+	missingSummaries, err := GetQuotaDataSummaryByUser(base, base+3600, 999, nil)
 	require.NoError(t, err)
 	assert.Empty(t, missingSummaries)
 }
@@ -183,7 +183,7 @@ func TestGetChannelTokenUsageByUser(t *testing.T) {
 	createQuotaDataTestRows(t)
 	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
 
-	rows, err := GetChannelTokenUsageByUser(base, base+3600)
+	rows, err := GetChannelTokenUsageByUser(base, base+3600, nil)
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
 
@@ -211,7 +211,7 @@ func TestGetChannelTokenUsageByUserExcludesZeroChannel(t *testing.T) {
 		TokenID: 9, ChannelID: 0, TokenUsed: 999, Count: 1, Quota: 9999,
 	}).Error)
 
-	rows, err := GetChannelTokenUsageByUser(base, base+3600)
+	rows, err := GetChannelTokenUsageByUser(base, base+3600, nil)
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
 	for _, row := range rows {
@@ -247,11 +247,63 @@ func TestGetChannelTokenUsageEmptyRange(t *testing.T) {
 	createQuotaDataTestRows(t)
 	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
 
-	userRows, err := GetChannelTokenUsageByUser(base+7200, base+7200)
+	userRows, err := GetChannelTokenUsageByUser(base+7200, base+7200, nil)
 	require.NoError(t, err)
 	assert.Empty(t, userRows)
 
 	groupRows, err := GetChannelTokenUsageByGroup(base+7200, base+7200)
 	require.NoError(t, err)
 	assert.Empty(t, groupRows)
+}
+
+func TestGetQuotaDataSummaryByUserWithUserFilter(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	// userIDs=[1,2] → alice(300) 与 bob(50)，carol 被排除
+	summaries, err := GetQuotaDataSummaryByUser(base, base+3600, 0, []int{1, 2})
+	require.NoError(t, err)
+	require.Len(t, summaries, 2)
+	assert.Equal(t, "alice", summaries[0].Username)
+	assert.Equal(t, 300, summaries[0].TokenUsed)
+	assert.Equal(t, "bob", summaries[1].Username)
+	assert.Equal(t, 50, summaries[1].TokenUsed)
+
+	// userIDs=[3] → 仅 carol(25)
+	carolSummaries, err := GetQuotaDataSummaryByUser(base, base+3600, 0, []int{3})
+	require.NoError(t, err)
+	require.Len(t, carolSummaries, 1)
+	assert.Equal(t, "carol", carolSummaries[0].Username)
+	assert.Equal(t, 25, carolSummaries[0].TokenUsed)
+
+	// userIDs=nil → 全部 3 条
+	allSummaries, err := GetQuotaDataSummaryByUser(base, base+3600, 0, nil)
+	require.NoError(t, err)
+	require.Len(t, allSummaries, 3)
+}
+
+func TestGetChannelTokenUsageByUserWithUserFilter(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	// userIDs=[1] → 仅 alice/ch1(300)
+	aliceRows, err := GetChannelTokenUsageByUser(base, base+3600, []int{1})
+	require.NoError(t, err)
+	require.Len(t, aliceRows, 1)
+	assert.Equal(t, "alice", aliceRows[0].Username)
+	assert.Equal(t, 1, aliceRows[0].ChannelID)
+	assert.Equal(t, 300, aliceRows[0].TokenUsed)
+
+	// userIDs=[2,3] → bob/ch1(50) 与 carol/ch2(25)，按 token_used 降序
+	bobCarolRows, err := GetChannelTokenUsageByUser(base, base+3600, []int{2, 3})
+	require.NoError(t, err)
+	require.Len(t, bobCarolRows, 2)
+	assert.Equal(t, "bob", bobCarolRows[0].Username)
+	assert.Equal(t, 1, bobCarolRows[0].ChannelID)
+	assert.Equal(t, 50, bobCarolRows[0].TokenUsed)
+	assert.Equal(t, "carol", bobCarolRows[1].Username)
+	assert.Equal(t, 2, bobCarolRows[1].ChannelID)
+	assert.Equal(t, 25, bobCarolRows[1].TokenUsed)
 }
