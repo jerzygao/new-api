@@ -22,17 +22,33 @@ import type {
   ChannelDimensionTokenUsage,
   ChannelUsageSummary,
   QuotaDataSummary,
+  UserOption,
 } from './types'
+
+// Get user options for the user filter (admin only)
+export async function getUserOptions() {
+  const res = await api.get<{ success: boolean; data: UserOption[] }>(
+    '/api/user/options'
+  )
+  return res.data
+}
 
 // Get per-user token usage summary (admin only)
 export async function getUserQuotaSummary(params: {
   start_timestamp: number
   end_timestamp: number
   channel_id?: number
+  user_ids?: number[]
 }) {
+  const { user_ids, ...rest } = params
   const res = await api.get<{ success: boolean; data: QuotaDataSummary[] }>(
     '/api/data/users/summary',
-    { params }
+    {
+      params: {
+        ...rest,
+        user_ids: user_ids?.length ? user_ids.join(',') : undefined,
+      },
+    }
   )
   return res.data
 }
@@ -66,11 +82,18 @@ export async function getChannelUsageSummaries(params: {
 export async function getUserChannelTokenUsage(params: {
   start_timestamp: number
   end_timestamp: number
+  user_ids?: number[]
 }) {
+  const { user_ids, ...rest } = params
   const res = await api.get<{
     success: boolean
     data: ChannelDimensionTokenUsage[]
-  }>('/api/data/users/channel-tokens', { params })
+  }>('/api/data/users/channel-tokens', {
+    params: {
+      ...rest,
+      user_ids: user_ids?.length ? user_ids.join(',') : undefined,
+    },
+  })
   return res.data
 }
 

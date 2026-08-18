@@ -149,15 +149,21 @@ export function ChannelUsageHeatmap(props: ChannelUsageHeatmapProps) {
 export function UserChannelUsageHeatmap({
   timeRange,
   topLimit,
+  userIds,
 }: {
   timeRange: { start_timestamp: number; end_timestamp: number }
   topLimit: number
+  userIds: number[]
 }) {
   const { t } = useTranslation()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', 'user-channel-tokens', timeRange],
-    queryFn: () => getUserChannelTokenUsage(timeRange),
+    queryKey: ['dashboard', 'user-channel-tokens', timeRange, userIds],
+    queryFn: () =>
+      getUserChannelTokenUsage({
+        ...timeRange,
+        user_ids: userIds.length ? userIds : undefined,
+      }),
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
   })

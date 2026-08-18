@@ -129,7 +129,11 @@ type RenderedCard = {
   root: ReturnType<typeof createRoot>
 }
 
-function tableTree(queryClient: QueryClientType, days: number) {
+function tableTree(
+  queryClient: QueryClientType,
+  days: number,
+  userIds: number[] = []
+) {
   const { start, end } = getRollingDateRange(days)
   const timeRange = {
     start_timestamp: Math.floor(start.getTime() / 1000),
@@ -138,7 +142,7 @@ function tableTree(queryClient: QueryClientType, days: number) {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
-        <UserSummaryTable timeRange={timeRange} />
+        <UserSummaryTable timeRange={timeRange} userIds={userIds} />
       </I18nextProvider>
     </QueryClientProvider>
   )
@@ -146,14 +150,15 @@ function tableTree(queryClient: QueryClientType, days: number) {
 
 async function renderTable(
   queryClient: QueryClientType,
-  days: number
+  days: number,
+  userIds: number[] = []
 ): Promise<RenderedCard> {
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
 
   await act(async () => {
-    root.render(tableTree(queryClient, days))
+    root.render(tableTree(queryClient, days, userIds))
   })
 
   return { container, root }
@@ -162,10 +167,11 @@ async function renderTable(
 async function rerenderTable(
   rendered: RenderedCard,
   queryClient: QueryClientType,
-  days: number
+  days: number,
+  userIds: number[] = []
 ) {
   await act(async () => {
-    rendered.root.render(tableTree(queryClient, days))
+    rendered.root.render(tableTree(queryClient, days, userIds))
   })
 }
 
@@ -266,6 +272,42 @@ describe('user summary table queries', () => {
       throw new Error('expected a trailing summary call')
     }
     expect('channel_id' in lastSummaryCall.params).toBe(false)
+
+    await unmountTable(rendered)
+  })
+
+  test('user_ids is sent as comma-joined string when userIds is non-empty', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const rendered = await renderTable(queryClient, 1, [1, 2])
+    await flushAsyncUpdates()
+
+    const calls = summaryCalls()
+    expect(calls).toHaveLength(1)
+    const firstCall = calls[0]
+    if (!firstCall) {
+      throw new Error('expected an initial summary call')
+    }
+    expect(firstCall.params.user_ids).toBe('1,2')
+
+    await unmountTable(rendered)
+  })
+
+  test('user_ids is omitted when userIds is empty', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const rendered = await renderTable(queryClient, 1, [])
+    await flushAsyncUpdates()
+
+    const calls = summaryCalls()
+    expect(calls).toHaveLength(1)
+    const firstCall = calls[0]
+    if (!firstCall) {
+      throw new Error('expected an initial summary call')
+    }
+    expect('user_ids' in firstCall.params).toBe(false)
 
     await unmountTable(rendered)
   })

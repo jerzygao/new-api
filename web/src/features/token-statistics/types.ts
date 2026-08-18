@@ -40,3 +40,10 @@ export interface ChannelDimensionTokenUsage {
   channel_name?: string
   token_used?: number
 }
+
+export interface UserOption {
+  id: number
+  username: string
+  display_name: string
+  group: string
+}

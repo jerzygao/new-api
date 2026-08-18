@@ -170,8 +170,13 @@ interface SummaryTableProps {
   timeRange: { start_timestamp: number; end_timestamp: number }
 }
 
-export function UserSummaryTable({ timeRange }: SummaryTableProps) {
+interface UserSummaryTableProps extends SummaryTableProps {
+  userIds: number[]
+}
+
+export function UserSummaryTable(props: UserSummaryTableProps) {
   const { t } = useTranslation()
+  const { timeRange, userIds } = props
 
   const { data: channelData } = useQuery({
     queryKey: ['dashboard', 'channel-summary', timeRange],
@@ -189,11 +194,18 @@ export function UserSummaryTable({ timeRange }: SummaryTableProps) {
       : 0
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', 'user-summary', timeRange, effectiveChannel],
+    queryKey: [
+      'dashboard',
+      'user-summary',
+      timeRange,
+      effectiveChannel,
+      userIds,
+    ],
     queryFn: () =>
       getUserQuotaSummary({
         ...timeRange,
         channel_id: effectiveChannel || undefined,
+        user_ids: userIds.length ? userIds : undefined,
       }),
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
@@ -301,15 +313,20 @@ export function GroupSummaryTable({ timeRange }: SummaryTableProps) {
 interface UsageSummaryTablesProps {
   timeRange: { start_timestamp: number; end_timestamp: number }
   topUserLimit: number
+  userIds: number[]
 }
 
 export function UsageSummaryTables(props: UsageSummaryTablesProps) {
   return (
     <div className='mt-3 grid gap-3'>
-      <UserSummaryTable timeRange={props.timeRange} />
+      <UserSummaryTable
+        timeRange={props.timeRange}
+        userIds={props.userIds}
+      />
       <UserChannelUsageHeatmap
         timeRange={props.timeRange}
         topLimit={props.topUserLimit}
+        userIds={props.userIds}
       />
       <GroupSummaryTable timeRange={props.timeRange} />
       <GroupChannelUsageHeatmap

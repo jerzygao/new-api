@@ -25,6 +25,7 @@ import { TIME_RANGE_PRESETS } from '@/features/dashboard/constants'
 import { getRollingDateRange } from '@/lib/time'
 
 import { UsageSummaryTables } from './components/usage-summary-tables'
+import { UserFilterSelect } from './components/user-filter-select'
 
 const TOP_USER_LIMIT_OPTIONS = [5, 10, 20, 50]
 
@@ -38,6 +39,7 @@ export function TokenStatisticsPage() {
   })
   const [activePresetDays, setActivePresetDays] = useState<number | null>(7)
   const [topUserLimit, setTopUserLimit] = useState(10)
+  const [userIds, setUserIds] = useState<number[]>([])
 
   const timeRange = useMemo<TimeRange>(
     () => ({
@@ -118,9 +120,15 @@ export function TokenStatisticsPage() {
             ))}
           </TabsList>
         </Tabs>
+
+        <UserFilterSelect value={userIds} onValueChange={setUserIds} />
       </div>
 
-      <UsageSummaryTables timeRange={timeRange} topUserLimit={topUserLimit} />
+      <UsageSummaryTables
+        timeRange={timeRange}
+        topUserLimit={topUserLimit}
+        userIds={userIds}
+      />
     </div>
   )
 }
