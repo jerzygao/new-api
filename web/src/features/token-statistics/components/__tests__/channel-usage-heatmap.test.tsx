@@ -16,41 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import assert from 'node:assert/strict'
-import { after, describe, test } from 'node:test'
+import { render } from '@testing-library/react'
+import type { ComponentProps } from 'react'
+import { describe, expect, test } from 'vitest'
 
-import { Window } from 'happy-dom'
-
-const domWindow = new Window()
-const domGlobals = [
-  'window',
-  'document',
-  'navigator',
-  'HTMLElement',
-  'HTMLButtonElement',
-  'SVGElement',
-  'Node',
-  'Element',
-  'Event',
-  'CustomEvent',
-  'MutationObserver',
-  'ResizeObserver',
-  'requestAnimationFrame',
-  'cancelAnimationFrame',
-  'getComputedStyle',
-] as const
-
-for (const key of domGlobals) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    value: domWindow[key],
-  })
-}
-
-const { act } = await import('react')
-const { createRoot } = await import('react-dom/client')
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
+
+const { ChannelUsageHeatmap, heatmapCellStyle } =
+  await import('../channel-usage-heatmap')
 
 const i18n = createInstance()
 await i18n.use(initReactI18next).init({
@@ -66,39 +40,16 @@ await i18n.use(initReactI18next).init({
   },
 })
 
-const { ChannelUsageHeatmap, heatmapCellStyle } =
-  await import('../channel-usage-heatmap')
-const reactTestGlobals = globalThis as typeof globalThis & {
-  IS_REACT_ACT_ENVIRONMENT?: boolean
-}
-reactTestGlobals.IS_REACT_ACT_ENVIRONMENT = true
+type RenderedCard = ReturnType<typeof render>
 
-type RenderedCard = {
-  container: HTMLDivElement
-  root: ReturnType<typeof createRoot>
-}
-
-async function renderCard(
-  props: React.ComponentProps<typeof ChannelUsageHeatmap>
-): Promise<RenderedCard> {
-  const container = document.createElement('div')
-  document.body.append(container)
-  const root = createRoot(container)
-
-  await act(async () => {
-    root.render(
-      <I18nextProvider i18n={i18n}>
-        <ChannelUsageHeatmap {...props} />
-      </I18nextProvider>
-    )
-  })
-
-  return { container, root }
-}
-
-async function unmountCard(rendered: RenderedCard) {
-  await act(async () => rendered.root.unmount())
-  rendered.container.remove()
+function renderCard(
+  props: ComponentProps<typeof ChannelUsageHeatmap>
+): RenderedCard {
+  return render(
+    <I18nextProvider i18n={i18n}>
+      <ChannelUsageHeatmap {...props} />
+    </I18nextProvider>
+  )
 }
 
 function textOf(rendered: RenderedCard): string {
@@ -106,12 +57,8 @@ function textOf(rendered: RenderedCard): string {
 }
 
 describe('channel usage heatmap', () => {
-  after(() => {
-    domWindow.close()
-  })
-
-  test('renders row labels, column labels and cell values', async () => {
-    const rendered = await renderCard({
+  test('renders row labels, column labels and cell values', () => {
+    const rendered = renderCard({
       titleKey: 'User Channel Token Usage',
       icon: null,
       rowHeaderKey: 'Username',
@@ -128,17 +75,15 @@ describe('channel usage heatmap', () => {
     })
 
     const text = textOf(rendered)
-    assert.ok(text.includes('User Channel Token Usage'))
-    assert.ok(text.includes('bob') && text.includes('alice'))
-    assert.ok(text.includes('Claude') && text.includes('OpenAI'))
+    expect(text.includes('User Channel Token Usage')).toBe(true)
+    expect(text.includes('bob') && text.includes('alice')).toBe(true)
+    expect(text.includes('Claude') && text.includes('OpenAI')).toBe(true)
     // 单元格数值以格式化后文本渲染
-    assert.ok(text.includes('500') && text.includes('300'))
-
-    await unmountCard(rendered)
+    expect(text.includes('500') && text.includes('300')).toBe(true)
   })
 
-  test('shows empty text when there are no rows', async () => {
-    const rendered = await renderCard({
+  test('shows empty text when there are no rows', () => {
+    const rendered = renderCard({
       titleKey: 'User Channel Token Usage',
       icon: null,
       rowHeaderKey: 'Username',
@@ -146,13 +91,11 @@ describe('channel usage heatmap', () => {
       matrix: { rowLabels: [], columnLabels: [], cells: [], maxValue: 0 },
     })
 
-    assert.ok(textOf(rendered).includes('No data'))
-
-    await unmountCard(rendered)
+    expect(textOf(rendered).includes('No data')).toBe(true)
   })
 
-  test('renders skeleton rows while loading', async () => {
-    const rendered = await renderCard({
+  test('renders skeleton rows while loading', () => {
+    const rendered = renderCard({
       titleKey: 'User Channel Token Usage',
       icon: null,
       rowHeaderKey: 'Username',
@@ -163,25 +106,23 @@ describe('channel usage heatmap', () => {
 
     // loading 时渲染骨架而非空态
     const text = textOf(rendered)
-    assert.ok(!text.includes('No data'))
+    expect(text.includes('No data')).toBe(false)
     // 5 行骨架行
-    assert.equal(rendered.container.querySelectorAll('tbody tr').length, 5)
-
-    await unmountCard(rendered)
+    expect(rendered.container.querySelectorAll('tbody tr')).toHaveLength(5)
   })
 })
 
 describe('heatmapCellStyle', () => {
   test('scales alpha by value ratio with a floor', () => {
-    assert.deepEqual(heatmapCellStyle(0, 500), {})
-    assert.deepEqual(heatmapCellStyle(500, 500), {
+    expect(heatmapCellStyle(0, 500)).toEqual({})
+    expect(heatmapCellStyle(500, 500)).toEqual({
       backgroundColor: 'rgba(59, 130, 246, 0.85)',
     })
     // 最小值下限 0.08；低于 8% 的值用 0.08
-    assert.deepEqual(heatmapCellStyle(10, 500), {
+    expect(heatmapCellStyle(10, 500)).toEqual({
       backgroundColor: 'rgba(59, 130, 246, 0.08)',
     })
     // maxValue <= 0 不着色
-    assert.deepEqual(heatmapCellStyle(100, 0), {})
+    expect(heatmapCellStyle(100, 0)).toEqual({})
   })
 })

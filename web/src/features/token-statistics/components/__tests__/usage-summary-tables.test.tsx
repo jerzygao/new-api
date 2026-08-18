@@ -16,39 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import assert from 'node:assert/strict'
-import { after, describe, test } from 'node:test'
+import { render } from '@testing-library/react'
+import type { ComponentProps } from 'react'
+import { describe, expect, test } from 'vitest'
 
-import { Window } from 'happy-dom'
-
-const domWindow = new Window()
-const domGlobals = [
-  'window',
-  'document',
-  'navigator',
-  'HTMLElement',
-  'SVGElement',
-  'Node',
-  'Element',
-  'Event',
-  'CustomEvent',
-  'MutationObserver',
-  'requestAnimationFrame',
-  'cancelAnimationFrame',
-  'getComputedStyle',
-] as const
-
-for (const key of domGlobals) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    value: domWindow[key],
-  })
-}
-
-const { act } = await import('react')
-const { createRoot } = await import('react-dom/client')
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
+
+const { SummaryTableCard, USER_COLUMNS, GROUP_COLUMNS } =
+  await import('../usage-summary-tables')
 
 const i18n = createInstance()
 await i18n.use(initReactI18next).init({
@@ -70,39 +46,16 @@ await i18n.use(initReactI18next).init({
   },
 })
 
-const { SummaryTableCard, USER_COLUMNS, GROUP_COLUMNS } =
-  await import('../usage-summary-tables')
-const reactTestGlobals = globalThis as typeof globalThis & {
-  IS_REACT_ACT_ENVIRONMENT?: boolean
-}
-reactTestGlobals.IS_REACT_ACT_ENVIRONMENT = true
+type RenderedCard = ReturnType<typeof render>
 
-type RenderedCard = {
-  container: HTMLDivElement
-  root: ReturnType<typeof createRoot>
-}
-
-async function renderCard(
-  props: React.ComponentProps<typeof SummaryTableCard>
-): Promise<RenderedCard> {
-  const container = document.createElement('div')
-  document.body.append(container)
-  const root = createRoot(container)
-
-  await act(async () => {
-    root.render(
-      <I18nextProvider i18n={i18n}>
-        <SummaryTableCard {...props} />
-      </I18nextProvider>
-    )
-  })
-
-  return { container, root }
-}
-
-async function unmountCard(rendered: RenderedCard) {
-  await act(async () => rendered.root.unmount())
-  rendered.container.remove()
+function renderCard(
+  props: ComponentProps<typeof SummaryTableCard>
+): RenderedCard {
+  return render(
+    <I18nextProvider i18n={i18n}>
+      <SummaryTableCard {...props} />
+    </I18nextProvider>
+  )
 }
 
 function textOf(rendered: RenderedCard): string {
@@ -110,12 +63,8 @@ function textOf(rendered: RenderedCard): string {
 }
 
 describe('usage summary tables', () => {
-  after(() => {
-    domWindow.close()
-  })
-
-  test('renders user rows in given order with formatted values', async () => {
-    const rendered = await renderCard({
+  test('renders user rows in given order with formatted values', () => {
+    const rendered = renderCard({
       titleKey: 'User Token Usage Ranking',
       icon: null,
       columns: USER_COLUMNS,
@@ -141,16 +90,14 @@ describe('usage summary tables', () => {
     })
 
     const text = textOf(rendered)
-    assert.ok(text.includes('User Token Usage Ranking'))
-    assert.ok(text.includes('Username') && text.includes('Token Used'))
+    expect(text.includes('User Token Usage Ranking')).toBe(true)
+    expect(text.includes('Username') && text.includes('Token Used')).toBe(true)
     // 按后端返回顺序展示：alice 在 bob 之前
-    assert.ok(text.indexOf('alice') < text.indexOf('bob'))
-
-    await unmountCard(rendered)
+    expect(text.indexOf('alice')).toBeLessThan(text.indexOf('bob'))
   })
 
-  test('renders group columns including user count', async () => {
-    const rendered = await renderCard({
+  test('renders group columns including user count', () => {
+    const rendered = renderCard({
       titleKey: 'Group Token Usage Ranking',
       icon: null,
       columns: GROUP_COLUMNS,
@@ -177,14 +124,12 @@ describe('usage summary tables', () => {
     })
 
     const text = textOf(rendered)
-    assert.ok(text.includes('vip'))
-    assert.ok(text.includes('2')) // user_count
-
-    await unmountCard(rendered)
+    expect(text.includes('vip')).toBe(true)
+    expect(text.includes('2')).toBe(true) // user_count
   })
 
-  test('shows empty text when there are no rows', async () => {
-    const rendered = await renderCard({
+  test('shows empty text when there are no rows', () => {
+    const rendered = renderCard({
       titleKey: 'User Token Usage Ranking',
       icon: null,
       columns: USER_COLUMNS,
@@ -193,13 +138,11 @@ describe('usage summary tables', () => {
       cellRenderer: () => '-',
     })
 
-    assert.ok(textOf(rendered).includes('No data'))
-
-    await unmountCard(rendered)
+    expect(textOf(rendered).includes('No data')).toBe(true)
   })
 
-  test('renders the optional filter node in the card header', async () => {
-    const rendered = await renderCard({
+  test('renders the optional filter node in the card header', () => {
+    const rendered = renderCard({
       titleKey: 'User Token Usage Ranking',
       icon: null,
       columns: USER_COLUMNS,
@@ -209,8 +152,6 @@ describe('usage summary tables', () => {
       filter: <span>filter-ui</span>,
     })
 
-    assert.ok(textOf(rendered).includes('filter-ui'))
-
-    await unmountCard(rendered)
+    expect(textOf(rendered).includes('filter-ui')).toBe(true)
   })
 })

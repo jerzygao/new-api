@@ -19,42 +19,21 @@ For commercial licensing, please contact support@quantumnous.com
 // Test scoping: this test exercises the preset-tab path — clicking the
 // "14 Days" preset (a non-default value) and asserting the last recorded
 // api call has a ~14 day span, proving click → range recompute → refetch.
-// DatePicker calendar interaction is NOT driven here: happy-dom makes
+// DatePicker calendar interaction is NOT driven here: jsdom makes
 // calendar/portal DOM interaction unreliable, and the custom-date path is
 // covered by typecheck plus the shared DatePicker component's own coverage.
-import assert from 'node:assert/strict'
-import { after, before, beforeEach, describe, test } from 'node:test'
+import { act } from '@testing-library/react'
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from 'vitest'
 
 import type { ApiRequestConfig } from '@/lib/api'
-import { Window } from 'happy-dom'
 
-const domWindow = new Window()
-const domGlobals = [
-  'window',
-  'document',
-  'navigator',
-  'HTMLElement',
-  'HTMLButtonElement',
-  'SVGElement',
-  'Node',
-  'Element',
-  'Event',
-  'CustomEvent',
-  'MutationObserver',
-  'ResizeObserver',
-  'requestAnimationFrame',
-  'cancelAnimationFrame',
-  'getComputedStyle',
-] as const
-
-for (const key of domGlobals) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    value: domWindow[key],
-  })
-}
-
-const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
@@ -95,11 +74,6 @@ await i18n.use(initReactI18next).init({
   },
 })
 
-const reactTestGlobals = globalThis as typeof globalThis & {
-  IS_REACT_ACT_ENVIRONMENT?: boolean
-}
-reactTestGlobals.IS_REACT_ACT_ENVIRONMENT = true
-
 // ============================================================================
 // api 传输边界打桩：替换共享 axios 实例的 get，让真实 queryFn 代码路径执行。
 // 记录 (url, params)，并剔除 undefined 参数——axios 拼 URL 时丢弃 undefined，
@@ -127,7 +101,7 @@ const stubGet = ((
   return Promise.resolve({ data: { success: true, data: [] } })
 }) as typeof api.get
 
-before(() => {
+beforeAll(() => {
   api.get = stubGet
 })
 
@@ -135,9 +109,8 @@ beforeEach(() => {
   calls.length = 0
 })
 
-after(() => {
+afterAll(() => {
   api.get = originalGet
-  domWindow.close()
 })
 
 async function flushAsyncUpdates() {
@@ -149,15 +122,15 @@ async function flushAsyncUpdates() {
 const TARGET_SECONDS = 14 * 24 * 60 * 60
 const TOLERANCE_SECONDS = 1000
 
-function assertSpan(call: RecordedCall) {
+function assertSpan(call: RecordedCall | undefined) {
+  if (!call) {
+    throw new Error('expected a recorded api call')
+  }
   const start = Number(call.params.start_timestamp)
   const end = Number(call.params.end_timestamp)
   const span = end - start
-  assert.ok(
-    span > TARGET_SECONDS - TOLERANCE_SECONDS &&
-      span < TARGET_SECONDS + TOLERANCE_SECONDS,
-    `${call.url} span ${span}s not within 14 days ± ${TOLERANCE_SECONDS}s`
-  )
+  expect(span).toBeGreaterThan(TARGET_SECONDS - TOLERANCE_SECONDS)
+  expect(span).toBeLessThan(TARGET_SECONDS + TOLERANCE_SECONDS)
 }
 
 describe('token statistics page', () => {
@@ -185,7 +158,9 @@ describe('token statistics page', () => {
     const fourteenDaysTrigger = triggers.find((button) =>
       (button.textContent ?? '').includes('14 Days')
     )
-    assert.ok(fourteenDaysTrigger, '14 Days preset trigger not found')
+    if (!fourteenDaysTrigger) {
+      throw new Error('14 Days preset trigger not found')
+    }
     await act(async () => fourteenDaysTrigger.click())
     await flushAsyncUpdates()
 
@@ -193,15 +168,15 @@ describe('token statistics page', () => {
     const summaryCalls = calls.filter(
       (call) => call.url === '/api/data/users/summary'
     )
-    assert.ok(summaryCalls.length > 0, 'user summary was not requested')
-    assertSpan(summaryCalls.at(-1)!)
+    expect(summaryCalls.length).toBeGreaterThan(0)
+    assertSpan(summaryCalls.at(-1))
 
     // getChannelUsageSummaries (/api/data/channels) 末次调用的区间跨度 ≈ 14 天
     const channelCalls = calls.filter(
       (call) => call.url === '/api/data/channels'
     )
-    assert.ok(channelCalls.length > 0, 'channel usage was not requested')
-    assertSpan(channelCalls.at(-1)!)
+    expect(channelCalls.length).toBeGreaterThan(0)
+    assertSpan(channelCalls.at(-1))
 
     await act(async () => root.unmount())
     container.remove()

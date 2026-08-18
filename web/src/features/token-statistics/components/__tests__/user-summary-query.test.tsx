@@ -16,41 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import assert from 'node:assert/strict'
-import { after, before, beforeEach, describe, test } from 'node:test'
+import { act } from '@testing-library/react'
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from 'vitest'
 
 import type { QueryClient as QueryClientType } from '@tanstack/react-query'
-import { Window } from 'happy-dom'
 
 import type { ApiRequestConfig } from '@/lib/api'
 
-const domWindow = new Window()
-const domGlobals = [
-  'window',
-  'document',
-  'navigator',
-  'HTMLElement',
-  'HTMLButtonElement',
-  'SVGElement',
-  'Node',
-  'Element',
-  'Event',
-  'CustomEvent',
-  'MutationObserver',
-  'ResizeObserver',
-  'requestAnimationFrame',
-  'cancelAnimationFrame',
-  'getComputedStyle',
-] as const
-
-for (const key of domGlobals) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    value: domWindow[key],
-  })
-}
-
-const { act } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { createInstance } = await import('i18next')
 const { I18nextProvider, initReactI18next } = await import('react-i18next')
@@ -77,11 +56,6 @@ await i18n.use(initReactI18next).init({
     },
   },
 })
-
-const reactTestGlobals = globalThis as typeof globalThis & {
-  IS_REACT_ACT_ENVIRONMENT?: boolean
-}
-reactTestGlobals.IS_REACT_ACT_ENVIRONMENT = true
 
 // ============================================================================
 // api 传输边界打桩：替换共享 axios 实例的 get，让真实 queryFn 代码路径执行。
@@ -125,7 +99,7 @@ const stubGet = ((
   return Promise.resolve({ data: { success: true, data: [] } })
 }) as typeof api.get
 
-before(() => {
+beforeAll(() => {
   api.get = stubGet
 })
 
@@ -136,9 +110,8 @@ beforeEach(() => {
   resolveChannels = undefined
 })
 
-after(() => {
+afterAll(() => {
   api.get = originalGet
-  domWindow.close()
 })
 
 function summaryCalls(): RecordedCall[] {
@@ -203,11 +176,15 @@ async function unmountTable(rendered: RenderedCard) {
 
 async function selectChannelOption(rendered: RenderedCard, label: string) {
   const trigger = rendered.container.querySelector('button')
-  assert.ok(trigger)
+  if (!trigger) {
+    throw new Error('select trigger not found')
+  }
   await act(async () => trigger.click())
   const options = [...document.querySelectorAll<HTMLElement>('[role="option"]')]
   const option = options.find((el) => (el.textContent ?? '').includes(label))
-  assert.ok(option)
+  if (!option) {
+    throw new Error(`option "${label}" not found`)
+  }
   await act(async () => option.click())
 }
 
@@ -220,8 +197,12 @@ describe('user summary table queries', () => {
     await flushAsyncUpdates()
 
     const calls = summaryCalls()
-    assert.equal(calls.length, 1)
-    assert.ok(!('channel_id' in calls[0].params))
+    expect(calls).toHaveLength(1)
+    const firstCall = calls[0]
+    if (!firstCall) {
+      throw new Error('expected an initial summary call')
+    }
+    expect('channel_id' in firstCall.params).toBe(false)
 
     await unmountTable(rendered)
   })
@@ -247,8 +228,8 @@ describe('user summary table queries', () => {
     await flushAsyncUpdates()
 
     const calls = summaryCalls()
-    assert.equal(calls.length, 2)
-    assert.equal(calls.at(-1)?.params.channel_id, 1)
+    expect(calls).toHaveLength(2)
+    expect(calls.at(-1)?.params.channel_id).toBe(1)
 
     await unmountTable(rendered)
   })
@@ -271,7 +252,7 @@ describe('user summary table queries', () => {
     await flushAsyncUpdates()
     await selectChannelOption(rendered, 'OpenAI')
     await flushAsyncUpdates()
-    assert.equal(summaryCalls().at(-1)?.params.channel_id, 1)
+    expect(summaryCalls().at(-1)?.params.channel_id).toBe(1)
 
     // 切换时间范围：新 timeRange 触发渠道查询 #2（立即返回空选项），
     // effectiveChannel 回落为 0，summary 请求不再携带 channel_id
@@ -279,10 +260,12 @@ describe('user summary table queries', () => {
     await flushAsyncUpdates()
 
     const calls = summaryCalls()
-    assert.ok(calls.length >= 3)
+    expect(calls.length).toBeGreaterThanOrEqual(3)
     const lastSummaryCall = calls.at(-1)
-    assert.ok(lastSummaryCall)
-    assert.ok(!('channel_id' in lastSummaryCall.params))
+    if (!lastSummaryCall) {
+      throw new Error('expected a trailing summary call')
+    }
+    expect('channel_id' in lastSummaryCall.params).toBe(false)
 
     await unmountTable(rendered)
   })

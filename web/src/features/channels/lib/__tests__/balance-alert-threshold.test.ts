@@ -16,8 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
+import { describe, expect, test } from 'vitest'
 
 import { CHANNEL_FORM_DEFAULT_VALUES, channelFormSchema } from '../channel-form'
 
@@ -33,24 +32,20 @@ function thresholdForm(threshold?: number) {
 
 describe('channel form balance alert threshold', () => {
   test('accepts a positive threshold', () => {
-    assert.equal(channelFormSchema.safeParse(thresholdForm(5)).success, true)
+    expect(channelFormSchema.safeParse(thresholdForm(5)).success).toBe(true)
   })
 
   test('accepts zero (alert disabled)', () => {
-    assert.equal(channelFormSchema.safeParse(thresholdForm(0)).success, true)
+    expect(channelFormSchema.safeParse(thresholdForm(0)).success).toBe(true)
   })
 
   test('rejects negative thresholds', () => {
-    assert.equal(channelFormSchema.safeParse(thresholdForm(-1)).success, false)
-    assert.equal(
-      channelFormSchema.safeParse(thresholdForm(-0.5)).success,
-      false
-    )
+    expect(channelFormSchema.safeParse(thresholdForm(-1)).success).toBe(false)
+    expect(channelFormSchema.safeParse(thresholdForm(-0.5)).success).toBe(false)
   })
 
   test('accepts an unset threshold (use global default)', () => {
-    assert.equal(
-      channelFormSchema.safeParse(thresholdForm(undefined)).success,
+    expect(channelFormSchema.safeParse(thresholdForm(undefined)).success).toBe(
       true
     )
   })

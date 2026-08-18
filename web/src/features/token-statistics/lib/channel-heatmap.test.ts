@@ -16,8 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
+import { describe, expect, test } from 'vitest'
 
 import { buildChannelHeatmap } from './channel-heatmap'
 
@@ -35,15 +34,15 @@ describe('buildChannelHeatmap', () => {
     )
 
     // 行按总量降序取前 2：bob(600) > alice(500)，erin 被截断
-    assert.deepEqual(matrix.rowLabels, ['bob', 'alice'])
+    expect(matrix.rowLabels).toEqual(['bob', 'alice'])
     // 列按渠道总量降序：Claude(700) > OpenAI(450)
-    assert.deepEqual(matrix.columnLabels, ['Claude', 'OpenAI'])
+    expect(matrix.columnLabels).toEqual(['Claude', 'OpenAI'])
     // cells[r][c] 与行列对应：bob×Claude=500, bob×OpenAI=100, alice×Claude=200, alice×OpenAI=300
-    assert.deepEqual(matrix.cells, [
+    expect(matrix.cells).toEqual([
       [500, 100],
       [200, 300],
     ])
-    assert.equal(matrix.maxValue, 500)
+    expect(matrix.maxValue).toBe(500)
   })
 
   test('fills zero for missing user-channel pairs', () => {
@@ -55,22 +54,22 @@ describe('buildChannelHeatmap', () => {
       10
     )
 
-    assert.deepEqual(matrix.rowLabels, ['bob', 'alice'])
-    assert.deepEqual(matrix.columnLabels, ['Claude', 'OpenAI'])
+    expect(matrix.rowLabels).toEqual(['bob', 'alice'])
+    expect(matrix.columnLabels).toEqual(['Claude', 'OpenAI'])
     // bob×Claude=200, bob×OpenAI=0, alice×Claude=0, alice×OpenAI=100
-    assert.deepEqual(matrix.cells, [
+    expect(matrix.cells).toEqual([
       [200, 0],
       [0, 100],
     ])
-    assert.equal(matrix.maxValue, 200)
+    expect(matrix.maxValue).toBe(200)
   })
 
   test('returns empty matrix for empty input', () => {
     const matrix = buildChannelHeatmap([], 10)
-    assert.deepEqual(matrix.rowLabels, [])
-    assert.deepEqual(matrix.columnLabels, [])
-    assert.deepEqual(matrix.cells, [])
-    assert.equal(matrix.maxValue, 0)
+    expect(matrix.rowLabels).toEqual([])
+    expect(matrix.columnLabels).toEqual([])
+    expect(matrix.cells).toEqual([])
+    expect(matrix.maxValue).toBe(0)
   })
 
   test('groups use use_group as the row key', () => {
@@ -81,8 +80,8 @@ describe('buildChannelHeatmap', () => {
       ],
       10
     )
-    assert.deepEqual(matrix.rowLabels, ['vip', 'default'])
-    assert.deepEqual(matrix.cells, [[400], [100]])
+    expect(matrix.rowLabels).toEqual(['vip', 'default'])
+    expect(matrix.cells).toEqual([[400], [100]])
   })
 
   test('falls back to channel_id when channel_name is missing', () => {
@@ -90,6 +89,6 @@ describe('buildChannelHeatmap', () => {
       [{ username: 'alice', channel_id: 7, token_used: 100 }],
       10
     )
-    assert.deepEqual(matrix.columnLabels, ['7'])
+    expect(matrix.columnLabels).toEqual(['7'])
   })
 })
