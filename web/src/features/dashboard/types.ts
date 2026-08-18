@@ -33,31 +33,6 @@ export interface QuotaDataItem {
   quota?: number
 }
 
-export interface QuotaDataSummary {
-  username?: string
-  use_group?: string
-  token_used?: number
-  quota?: number
-  count?: number
-  user_count?: number
-}
-
-export interface ChannelUsageSummary {
-  channel_id?: number
-  channel_name?: string
-  token_used?: number
-  quota?: number
-  count?: number
-}
-
-export interface ChannelDimensionTokenUsage {
-  username?: string
-  use_group?: string
-  channel_id?: number
-  channel_name?: string
-  token_used?: number
-}
-
 export interface FlowQuotaDataItem {
   user_id?: number
   username?: string

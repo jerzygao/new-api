@@ -19,11 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 
 import type {
-  ChannelDimensionTokenUsage,
-  ChannelUsageSummary,
   FlowQuotaDataItem,
   QuotaDataItem,
-  QuotaDataSummary,
   UptimeGroupResult,
 } from './types'
 
@@ -66,68 +63,6 @@ export async function getUserQuotaDataByUsers(params: {
     '/api/data/users',
     { params }
   )
-  return res.data
-}
-
-// Get per-user token usage summary (admin only)
-export async function getUserQuotaSummary(params: {
-  start_timestamp: number
-  end_timestamp: number
-  channel_id?: number
-}) {
-  const res = await api.get<{ success: boolean; data: QuotaDataSummary[] }>(
-    '/api/data/users/summary',
-    { params }
-  )
-  return res.data
-}
-
-// Get per-group token usage summary (admin only)
-export async function getGroupQuotaSummary(params: {
-  start_timestamp: number
-  end_timestamp: number
-  channel_id?: number
-}) {
-  const res = await api.get<{ success: boolean; data: QuotaDataSummary[] }>(
-    '/api/data/groups',
-    { params }
-  )
-  return res.data
-}
-
-// Get per-channel token usage summary within a time range (admin only)
-export async function getChannelUsageSummaries(params: {
-  start_timestamp: number
-  end_timestamp: number
-}) {
-  const res = await api.get<{ success: boolean; data: ChannelUsageSummary[] }>(
-    '/api/data/channels',
-    { params }
-  )
-  return res.data
-}
-
-// Get per-user per-channel token usage within a time range (admin only)
-export async function getUserChannelTokenUsage(params: {
-  start_timestamp: number
-  end_timestamp: number
-}) {
-  const res = await api.get<{
-    success: boolean
-    data: ChannelDimensionTokenUsage[]
-  }>('/api/data/users/channel-tokens', { params })
-  return res.data
-}
-
-// Get per-group per-channel token usage within a time range (admin only)
-export async function getGroupChannelTokenUsage(params: {
-  start_timestamp: number
-  end_timestamp: number
-}) {
-  const res = await api.get<{
-    success: boolean
-    data: ChannelDimensionTokenUsage[]
-  }>('/api/data/groups/channel-tokens', { params })
   return res.data
 }
 

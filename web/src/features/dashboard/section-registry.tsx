@@ -46,6 +46,12 @@ const DASHBOARD_SECTIONS = [
     build: () => null,
   },
   {
+    id: 'token-statistics',
+    titleKey: 'Token Statistics',
+    adminOnly: true,
+    build: () => null,
+  },
+  {
     id: 'channel-performance',
     titleKey: 'Channel Performance',
     adminOnly: true,
@@ -55,7 +61,11 @@ const DASHBOARD_SECTIONS = [
 
 export type DashboardSectionId = (typeof DASHBOARD_SECTIONS)[number]['id']
 
-const ADMIN_ONLY_SECTIONS = new Set<string>(['users', 'channel-performance'])
+const ADMIN_ONLY_SECTIONS = new Set<string>([
+  'users',
+  'token-statistics',
+  'channel-performance',
+])
 
 const dashboardRegistry = createSectionRegistry<
   DashboardSectionId,

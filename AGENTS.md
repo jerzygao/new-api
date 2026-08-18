@@ -62,6 +62,17 @@ web/           — Frontend (React 19, Rsbuild, Base UI, Tailwind)
 - A separate function is appropriate when it represents reusable behavior, a required interface/framework callback, an exported API, a test fixture, or complex business logic that deserves direct tests.
 - If a single-use helper is kept, its name must describe a durable domain concept rather than a mechanical step extracted only to shorten the caller.
 
+### Fork Merge Discipline
+
+This repository is a fork that periodically re-syncs with its upstream. New feature work MUST stay merge-friendly so pulling upstream produces small, reviewable conflicts instead of large-scale ones.
+
+- Prefer adding new files, packages, or directories over editing existing upstream files. New providers go under `relay/channel/<provider>/`, new settings under `setting/`, new frontend features under `web/src/features/<feature>/` — a new path almost never conflicts with upstream.
+- When a shared upstream file must change, make additive, localized edits: append a route/case/registration line, add a field, or insert a branch. Do not rewrite or reorder surrounding upstream code.
+- Do not reformat, rename, move, or "tidy" upstream code you are not otherwise changing — whitespace-only and import-ordering changes create gratuitous conflicts and hide the real diff.
+- Keep fork-specific customization behind small, clearly marked hooks or config branches instead of inlining it throughout shared logic.
+- Prefer composition and extension (new subtypes, new adapters, new middleware) over modifying shared core types or control flow that upstream churns frequently.
+- For i18n, add new feature-scoped keys instead of editing existing entries; never reflow existing translation strings.
+
 ### Backend Rules
 
 **relaykit module independence:** The `relaykit/` Go module MUST remain independently buildable.

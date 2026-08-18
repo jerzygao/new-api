@@ -107,12 +107,6 @@ const LazyUserCharts = lazy(() =>
   }))
 )
 
-const LazyUsageSummaryTables = lazy(() =>
-  import('./components/users/usage-summary-tables').then((m) => ({
-    default: m.UsageSummaryTables,
-  }))
-)
-
 const LazyFlowCharts = lazy(() =>
   import('./components/flow/flow-charts').then((m) => ({
     default: m.FlowCharts,
@@ -125,6 +119,12 @@ const LazyChannelPerformancePanel = lazy(() =>
       default: m.ChannelPerformancePanel,
     })
   )
+)
+
+const LazyTokenStatistics = lazy(() =>
+  import('@/features/token-statistics/token-statistics-page').then((m) => ({
+    default: m.TokenStatisticsPage,
+  }))
 )
 
 function LogStatCardsFallback() {
@@ -203,6 +203,9 @@ const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
   users: {
     titleKey: 'User Analytics',
   },
+  'token-statistics': {
+    titleKey: 'Token Statistics',
+  },
   'channel-performance': {
     titleKey: 'Channel Performance',
   },
@@ -267,7 +270,9 @@ export function Dashboard() {
       DASHBOARD_SECTION_IDS.filter(
         (section) =>
           section !== 'overview' &&
-          ((section !== 'users' && section !== 'channel-performance') ||
+          ((section !== 'users' &&
+            section !== 'token-statistics' &&
+            section !== 'channel-performance') ||
             isAdmin)
       ),
     [isAdmin]
@@ -418,12 +423,6 @@ export function Dashboard() {
                   onFiltersChange={setUserChartsFilters}
                 />
               </Suspense>
-              <Suspense fallback={<ModelChartsFallback />}>
-                <LazyUsageSummaryTables
-                  selectedRange={userChartsFilters.selectedRange}
-                  topUserLimit={userChartsFilters.topUserLimit}
-                />
-              </Suspense>
             </FadeIn>
           )}
           {activeSection === 'flow' && (
@@ -440,6 +439,13 @@ export function Dashboard() {
             <FadeIn>
               <Suspense fallback={<ModelChartsFallback />}>
                 <LazyChannelPerformancePanel />
+              </Suspense>
+            </FadeIn>
+          )}
+          {activeSection === 'token-statistics' && (
+            <FadeIn>
+              <Suspense fallback={<ModelChartsFallback />}>
+                <LazyTokenStatistics />
               </Suspense>
             </FadeIn>
           )}
