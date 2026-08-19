@@ -67,9 +67,12 @@ await i18n.use(initReactI18next).init({
 // ============================================================================
 
 const userOptions = [
-  { id: 1, username: 'alice', display_name: 'Alice', group: 'default' },
-  { id: 2, username: 'bob', display_name: 'Bob', group: 'default' },
-  { id: 3, username: 'carol', display_name: 'Carol', group: 'vip' },
+  { id: 1, username: 'root', display_name: 'Root', group: 'default' },
+  { id: 2, username: 'alice', display_name: 'Alice', group: 'default' },
+  { id: 3, username: 'bob', display_name: 'Bob', group: 'vip' },
+  { id: 4, username: 'carol', display_name: 'Carol', group: 'vip' },
+  { id: 5, username: 'dave', display_name: 'Dave', group: 'team-b' },
+  { id: 6, username: 'eve', display_name: 'Eve', group: 'team-b' },
 ]
 
 // ============================================================================
@@ -171,13 +174,35 @@ async function openPopover(rendered: RenderedCard) {
   await act(async () => trigger.click())
 }
 
-async function clickOption(label: string) {
+function getOptionTexts(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('[role="option"]')].map(
+    (el) => el.textContent ?? ''
+  )
+}
+
+function findOptionEl(label: string): HTMLElement {
   const options = [...document.querySelectorAll<HTMLElement>('[role="option"]')]
   const option = options.find((el) => (el.textContent ?? '').includes(label))
   if (!option) {
     throw new Error(`option "${label}" not found`)
   }
-  await act(async () => option.click())
+  return option
+}
+
+// Click a row (focuses its scope); targets the [role="option"] div itself so the
+// nested indicator button is not triggered.
+async function clickOption(label: string) {
+  await act(async () => findOptionEl(label).click())
+}
+
+// Click the checkbox indicator button nested inside the row matching `label`,
+// toggling selection for that scope without focusing it.
+async function clickIndicator(label: string) {
+  const btn = findOptionEl(label).querySelector<HTMLButtonElement>('button')
+  if (!btn) {
+    throw new Error(`indicator button not found in "${label}" row`)
+  }
+  await act(async () => btn.click())
 }
 
 // ============================================================================
@@ -245,11 +270,11 @@ describe('user filter pure functions', () => {
 })
 
 // ============================================================================
-// Component tests
+// Component tests (two-pane picker)
 // ============================================================================
 
 describe('user filter select component', () => {
-  test('initial trigger text shows All Users', async () => {
+  test('initial trigger shows All Users and popover renders both panes', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
@@ -259,10 +284,26 @@ describe('user filter select component', () => {
     const trigger = rendered.container.querySelector('button')
     expect(trigger?.textContent).toContain('All Users')
 
+    await openPopover(rendered)
+
+    const optionTexts = getOptionTexts()
+    // Left pane: All Users + 3 groups (default, team-b, vip after sort)
+    expect(optionTexts.some((t) => t.includes('All Users'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('default'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('team-b'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('vip'))).toBe(true)
+    // Right pane: all 6 users (focused = All)
+    expect(optionTexts.some((t) => t.includes('Root'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('Alice'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('Bob'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('Carol'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('Dave'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('Eve'))).toBe(true)
+
     await unmountComponent(rendered)
   })
 
-  test('clicking a user option calls onValueChange with that user id', async () => {
+  test('focusing a group shows its users and the group indicator toggles its members', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
@@ -270,31 +311,29 @@ describe('user filter select component', () => {
     await flushAsyncUpdates()
 
     await openPopover(rendered)
-    await clickOption('Alice')
 
-    expect(calls.at(-1)?.ids).toEqual([1])
+    // Focus the vip group row
+    await clickOption('vip')
+    const optionTexts = getOptionTexts()
+    expect(optionTexts.some((t) => t.includes('Bob'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('Carol'))).toBe(true)
+    expect(optionTexts.some((t) => t.includes('Alice'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Root'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Dave'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Eve'))).toBe(false)
 
-    await unmountComponent(rendered)
-  })
+    // Toggle the vip group indicator -> select bob (3) + carol (4)
+    await clickIndicator('vip')
+    expect(calls.at(-1)?.ids).toEqual([3, 4])
 
-  test('Select all toggles between all visible and none', async () => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    })
-    const rendered = await renderComponent(queryClient)
-    await flushAsyncUpdates()
-
-    await openPopover(rendered)
-    await clickOption('Select all')
-    expect(calls.at(-1)?.ids).toEqual([1, 2, 3])
-
-    await clickOption('Select all')
+    // Toggle again -> deselect
+    await clickIndicator('vip')
     expect(calls.at(-1)?.ids).toEqual([])
 
     await unmountComponent(rendered)
   })
 
-  test('clicking a group toggle selects all users in that group', async () => {
+  test('All Users indicator toggles all users', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
@@ -302,79 +341,120 @@ describe('user filter select component', () => {
     await flushAsyncUpdates()
 
     await openPopover(rendered)
-    await clickOption('default')
 
-    expect(calls.at(-1)?.ids).toEqual([1, 2])
+    await clickIndicator('All Users')
+    expect(calls.at(-1)?.ids).toEqual([1, 2, 3, 4, 5, 6])
+
+    await clickIndicator('All Users')
+    expect(calls.at(-1)?.ids).toEqual([])
 
     await unmountComponent(rendered)
   })
 
-  test('search input stays controlled after popover close/reopen', async () => {
+  test('clicking a user row toggles that user id', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
     const rendered = await renderComponent(queryClient)
     await flushAsyncUpdates()
 
-    // Open popover and type "alice" in search
     await openPopover(rendered)
+
+    await clickOption('Alice')
+    expect(calls.at(-1)?.ids).toEqual([2])
+
+    await unmountComponent(rendered)
+  })
+
+  test('right pane search filters the user list', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const rendered = await renderComponent(queryClient)
+    await flushAsyncUpdates()
+
+    await openPopover(rendered)
+
     const input = document.querySelector<HTMLInputElement>(
-      '[data-slot="command-input"]'
+      'input[aria-label="Search users"]'
     )
     if (!input) {
       throw new Error('search input not found')
     }
     await act(async () => {
-      fireEvent.input(input, { target: { value: 'alice' } })
+      fireEvent.input(input, { target: { value: 'carol' } })
     })
     await flushAsyncUpdates()
 
-    // Verify filtered list: only Alice visible, Bob/Carol absent
-    const optionTexts = (function () {
-      return [...document.querySelectorAll<HTMLElement>('[role="option"]')].map(
-        (el) => el.textContent ?? ''
-      )
-    })()
-    expect(optionTexts.some((t) => t.includes('Alice'))).toBe(true)
+    const optionTexts = getOptionTexts()
+    expect(optionTexts.filter((t) => t.includes('Carol')).length).toBe(1)
+    expect(optionTexts.some((t) => t.includes('Alice'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Bob'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Root'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Dave'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Eve'))).toBe(false)
+
+    await unmountComponent(rendered)
+  })
+
+  test('keyboard Enter on a user row toggles selection and aria-selected', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const rendered = await renderComponent(queryClient)
+    await flushAsyncUpdates()
+
+    await openPopover(rendered)
+
+    // Focus the vip group so the right pane lists bob (3) + carol (4)
+    await clickOption('vip')
+
+    await act(async () => {
+      fireEvent.keyDown(findOptionEl('Bob'), { key: 'Enter' })
+    })
+    expect(calls.at(-1)?.ids).toEqual([3])
+    expect(findOptionEl('Bob').getAttribute('aria-selected')).toBe('true')
+
+    // Enter again toggles off; aria-selected reflects the cleared state
+    await act(async () => {
+      fireEvent.keyDown(findOptionEl('Bob'), { key: 'Enter' })
+    })
+    expect(calls.at(-1)?.ids).toEqual([])
+    expect(findOptionEl('Bob').getAttribute('aria-selected')).toBe('false')
+
+    await unmountComponent(rendered)
+  })
+
+  test('right pane shows no results when search matches nothing', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const rendered = await renderComponent(queryClient)
+    await flushAsyncUpdates()
+
+    await openPopover(rendered)
+
+    const input = document.querySelector<HTMLInputElement>(
+      'input[aria-label="Search users"]'
+    )
+    if (!input) {
+      throw new Error('search input not found')
+    }
+    await act(async () => {
+      fireEvent.input(input, { target: { value: 'zzz' } })
+    })
+    await flushAsyncUpdates()
+
+    const popoverContent = document.querySelector('[data-slot="popover-content"]')
+    expect(popoverContent?.textContent ?? '').toContain('No results found.')
+    // No user rows rendered in the right pane (left pane groups remain)
+    const optionTexts = getOptionTexts()
+    expect(optionTexts.some((t) => t.includes('Root'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Alice'))).toBe(false)
     expect(optionTexts.some((t) => t.includes('Bob'))).toBe(false)
     expect(optionTexts.some((t) => t.includes('Carol'))).toBe(false)
-    expect(input.value).toBe('alice')
-
-    // Close popover by toggling the trigger
-    const closeTrigger = rendered.container.querySelector('button')
-    if (!closeTrigger) {
-      throw new Error('trigger not found for close')
-    }
-    await act(async () => closeTrigger.click())
-    await flushAsyncUpdates()
-
-    // Popover content should be unmounted (no command-input in document)
-    expect(
-      document.querySelector('[data-slot="command-input"]')
-    ).toBeNull()
-
-    // Reopen popover
-    const reopenTrigger = rendered.container.querySelector('button')
-    if (!reopenTrigger) {
-      throw new Error('trigger not found for reopen')
-    }
-    await act(async () => reopenTrigger.click())
-    await flushAsyncUpdates()
-
-    // Input value should still be "alice" (controlled) and list still filtered
-    const reopenedInput =
-      document.querySelector<HTMLInputElement>('[data-slot="command-input"]')
-    if (!reopenedInput) {
-      throw new Error('search input not found after reopen')
-    }
-    expect(reopenedInput.value).toBe('alice')
-
-    const reopenedOptionTexts = [
-      ...document.querySelectorAll<HTMLElement>('[role="option"]'),
-    ].map((el) => el.textContent ?? '')
-    expect(reopenedOptionTexts.some((t) => t.includes('Alice'))).toBe(true)
-    expect(reopenedOptionTexts.some((t) => t.includes('Bob'))).toBe(false)
-    expect(reopenedOptionTexts.some((t) => t.includes('Carol'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Dave'))).toBe(false)
+    expect(optionTexts.some((t) => t.includes('Eve'))).toBe(false)
 
     await unmountComponent(rendered)
   })

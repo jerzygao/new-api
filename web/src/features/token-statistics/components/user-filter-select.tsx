@@ -18,19 +18,10 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { Check, Minus, Users } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from '@/components/ui/command'
 import {
   Popover,
   PopoverContent,
@@ -139,11 +130,31 @@ export interface UserFilterSelectProps {
   onValueChange: (ids: number[]) => void
 }
 
-// User filter picker: grouped multi-select with search, select-all, and per-group toggle.
-// Empty selection means all users (no user_ids sent to the backend).
+// Focus key representing the "All Users" pseudo-group (right pane shows every user).
+const ALL_FOCUS = '__all__'
+
+// Activate a div-based row on Enter/Space so keyboard users can operate it; the
+// native <button> indicators handle their own keyboard activation. Space is
+// prevented to avoid scrolling the scroll container.
+function handleRowKeyDown(
+  e: KeyboardEvent<HTMLDivElement>,
+  fn: () => void
+) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    fn()
+  }
+}
+
+// User filter picker: two-pane multi-select. Left pane lists groups (plus an
+// "All Users" row); clicking a row focuses it, clicking its checkbox indicator
+// toggles every user in that scope. Right pane lists the focused scope's users
+// with a search box; clicking a user row toggles that user. Empty selection
+// means all users (no user_ids sent to the backend).
 export function UserFilterSelect(props: UserFilterSelectProps) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
+  const [focused, setFocused] = useState<string>(ALL_FOCUS)
 
   const { data: users } = useQuery({
     queryKey: ['token-statistics', 'user-options'],
@@ -153,9 +164,24 @@ export function UserFilterSelect(props: UserFilterSelectProps) {
   })
 
   const allUsers = users ?? []
-  const filtered = filterUsers(allUsers, search)
-  const grouped = groupUsers(filtered)
-  const selectAllState = getSelectionState(props.value, filtered)
+  const groups = groupUsers(allUsers)
+  const focusedUsers =
+    focused === ALL_FOCUS
+      ? allUsers
+      : (groups.find((g) => g.group === focused)?.users ?? [])
+  const filteredUsers = filterUsers(focusedUsers, search)
+  const allState = getSelectionState(props.value, allUsers)
+
+  const focusRow = (key: string) => {
+    setFocused(key)
+    setSearch('')
+  }
+
+  const toggleAll = () => props.onValueChange(toggleVisible(props.value, allUsers))
+  const toggleGroup = (groupUsers: UserOption[]) =>
+    props.onValueChange(toggleVisible(props.value, groupUsers))
+  const toggleUser = (id: number) =>
+    props.onValueChange(toggleUserId(props.value, id))
 
   return (
     <Popover>
@@ -165,83 +191,113 @@ export function UserFilterSelect(props: UserFilterSelectProps) {
           ? t('All Users')
           : t('{{count}} users selected', { count: props.value.length })}
       </PopoverTrigger>
-      <PopoverContent
-        className='max-w-[360px] min-w-[240px] p-0'
-        align='start'
-      >
-        <Command shouldFilter={false}>
-          <CommandInput
-            value={search}
-            placeholder={t('Search users')}
-            onValueChange={setSearch}
-          />
-          <CommandList>
-            <CommandEmpty>{t('No results found.')}</CommandEmpty>
-            {filtered.length > 0 && (
-              <>
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={() =>
-                      props.onValueChange(
-                        toggleVisible(props.value, filtered)
-                      )
-                    }
+      <PopoverContent className='w-[460px] p-0' align='start'>
+        <div className='flex h-72'>
+          {/* Left pane: scopes (All Users + each group) */}
+          <div className='border-r w-44 shrink-0 overflow-auto'>
+            <div
+              role='option'
+              aria-selected={focused === ALL_FOCUS}
+              tabIndex={0}
+              onClick={() => focusRow(ALL_FOCUS)}
+              onKeyDown={(e) => handleRowKeyDown(e, () => focusRow(ALL_FOCUS))}
+              className={cn(
+                'flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm',
+                focused === ALL_FOCUS ? 'bg-accent' : 'hover:bg-accent/50'
+              )}
+            >
+              <button
+                type='button'
+                aria-label={t('All Users')}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleAll()
+                }}
+                className='inline-flex cursor-pointer items-center border-0 bg-transparent p-0'
+              >
+                <SelectionIndicator state={allState} />
+              </button>
+              <span className='flex-1 truncate'>{t('All Users')}</span>
+            </div>
+            {groups.map(({ group, users: groupUsers }) => {
+              const groupState = getSelectionState(props.value, groupUsers)
+              const isFocused = focused === group
+              return (
+                <div
+                  key={group}
+                  role='option'
+                  aria-selected={isFocused}
+                  tabIndex={0}
+                  onClick={() => focusRow(group)}
+                  onKeyDown={(e) => handleRowKeyDown(e, () => focusRow(group))}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm',
+                    isFocused ? 'bg-accent' : 'hover:bg-accent/50'
+                  )}
+                >
+                  <button
+                    type='button'
+                    aria-label={group}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleGroup(groupUsers)
+                    }}
+                    className='inline-flex cursor-pointer items-center border-0 bg-transparent p-0'
                   >
-                    <SelectionIndicator state={selectAllState} />
-                    {t('Select all')}
-                  </CommandItem>
-                </CommandGroup>
-                {grouped.length > 0 && <CommandSeparator />}
-                {grouped.map(({ group, users: groupUsers }) => {
-                  const groupState = getSelectionState(props.value, groupUsers)
+                    <SelectionIndicator state={groupState} />
+                  </button>
+                  <span className='flex-1 truncate'>
+                    {group} ({groupUsers.length})
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          {/* Right pane: users in the focused scope */}
+          <div className='flex flex-1 flex-col'>
+            <div className='border-b p-1'>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('Search users')}
+                aria-label={t('Search users')}
+                className='h-7 w-full rounded-md border px-2 text-sm outline-none'
+              />
+            </div>
+            <div className='flex-1 overflow-auto'>
+              {filteredUsers.length === 0 ? (
+                <div className='text-muted-foreground p-2 text-sm'>
+                  {t('No results found.')}
+                </div>
+              ) : (
+                filteredUsers.map((user) => {
+                  const isSelected = props.value.includes(user.id)
                   return (
-                    <CommandGroup
-                      key={group}
-                      heading={group}
+                    <div
+                      key={user.id}
+                      role='option'
+                      aria-selected={isSelected}
+                      tabIndex={0}
+                      onClick={() => toggleUser(user.id)}
+                      onKeyDown={(e) => handleRowKeyDown(e, () => toggleUser(user.id))}
+                      className='flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/50'
                     >
-                      <CommandItem
-                        onSelect={() =>
-                          props.onValueChange(
-                            toggleVisible(props.value, groupUsers)
-                          )
-                        }
-                      >
-                        <SelectionIndicator state={groupState} />
-                        <span className='flex-1'>
-                          {group} ({groupUsers.length})
-                        </span>
-                      </CommandItem>
-                      {groupUsers.map((user) => {
-                        const isSelected = props.value.includes(user.id)
-                        return (
-                          <CommandItem
-                            key={user.id}
-                            value={String(user.id)}
-                            onSelect={() =>
-                              props.onValueChange(
-                                toggleUserId(props.value, user.id)
-                              )
-                            }
-                          >
-                            <SelectionIndicator
-                              state={isSelected ? 'all' : 'none'}
-                            />
-                            <span className='flex-1 truncate'>
-                              {user.display_name || user.username}
-                            </span>
-                            <span className='text-muted-foreground text-xs'>
-                              @{user.username}
-                            </span>
-                          </CommandItem>
-                        )
-                      })}
-                    </CommandGroup>
+                      <SelectionIndicator
+                        state={isSelected ? 'all' : 'none'}
+                      />
+                      <span className='flex-1 truncate'>
+                        {user.display_name || user.username}
+                      </span>
+                      <span className='text-muted-foreground text-xs'>
+                        @{user.username}
+                      </span>
+                    </div>
                   )
-                })}
-              </>
-            )}
-          </CommandList>
-        </Command>
+                })
+              )}
+            </div>
+          </div>
+        </div>
       </PopoverContent>
     </Popover>
   )
