@@ -5,13 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relay/channel/advancedcustom"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
@@ -46,6 +51,13 @@ type OpenAICreditGrants struct {
 	TotalGranted   float64 `json:"total_granted"`
 	TotalUsed      float64 `json:"total_used"`
 	TotalAvailable float64 `json:"total_available"`
+}
+
+const maxAdvancedCustomBalanceResponseBytes = 256 << 10
+
+type channelBalanceResult struct {
+	Balance     float64
+	RawResponse string
 }
 
 type OpenAIUsageResponse struct {
@@ -175,7 +187,7 @@ func updateChannelCloseAIBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	response := OpenAICreditGrants{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -190,7 +202,7 @@ func updateChannelOpenAISBBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	response := OpenAISBUsageResponse{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -214,7 +226,7 @@ func updateChannelAIProxyBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	response := AIProxyUserOverviewResponse{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -233,7 +245,7 @@ func updateChannelAPI2GPTBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	response := API2GPTUsageResponse{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -248,7 +260,7 @@ func updateChannelSiliconFlowBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	response := SiliconFlowUsageResponse{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -270,7 +282,7 @@ func updateChannelDeepSeekBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	response := DeepSeekUsageResponse{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -299,7 +311,7 @@ func updateChannelAIGC2DBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	response := APGC2DGPTUsageResponse{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -314,7 +326,7 @@ func updateChannelOpenRouterBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	response := OpenRouterCreditResponse{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -344,7 +356,7 @@ func updateChannelMoonshotBalance(channel *model.Channel) (float64, error) {
 	}
 
 	response := MoonshotBalanceResponse{}
-	err = json.Unmarshal(body, &response)
+	err = common.Unmarshal(body, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -357,7 +369,100 @@ func updateChannelMoonshotBalance(channel *model.Channel) (float64, error) {
 	return availableBalanceUsd, nil
 }
 
-func updateChannelBalance(channel *model.Channel) (float64, error) {
+func fetchAdvancedCustomBalance(channel *model.Channel) (channelBalanceResult, error) {
+	key := strings.TrimSpace(channel.Key)
+	info := &relaycommon.RelayInfo{
+		RelayFormat:    types.RelayFormatOpenAI,
+		RelayMode:      relayconstant.RelayModeUnknown,
+		RequestURLPath: dto.AdvancedCustomBalancePath,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelType:          constant.ChannelTypeAdvancedCustom,
+			ChannelBaseUrl:       channel.GetBaseURL(),
+			ApiKey:               key,
+			ChannelOtherSettings: channel.GetOtherSettings(),
+		},
+	}
+	requestURL, headers, err := (&advancedcustom.Adaptor{}).BuildBalanceRequest(info)
+	if err != nil {
+		return channelBalanceResult{}, sanitizeFetchModelsError(err, key)
+	}
+	if err := applyFetchModelsHeaderOverrides(channel, key, headers); err != nil {
+		return channelBalanceResult{}, sanitizeFetchModelsError(err, key)
+	}
+
+	request, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	if err != nil {
+		return channelBalanceResult{}, sanitizeFetchModelsError(err, key)
+	}
+	for name, values := range headers {
+		for _, value := range values {
+			request.Header.Add(name, value)
+		}
+		if strings.EqualFold(name, "Host") {
+			request.Host = headers.Get(name)
+		}
+	}
+	client, err := service.GetHttpClientWithProxy(channel.GetSetting().Proxy)
+	if err != nil {
+		return channelBalanceResult{}, sanitizeFetchModelsError(err, key)
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return channelBalanceResult{}, sanitizeAdvancedCustomRequestError(err, key, requestURL)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return channelBalanceResult{}, fmt.Errorf("status code: %d", response.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxAdvancedCustomBalanceResponseBytes+1))
+	if err != nil {
+		return channelBalanceResult{}, sanitizeAdvancedCustomRequestError(err, key, requestURL)
+	}
+	if len(body) > maxAdvancedCustomBalanceResponseBytes {
+		return channelBalanceResult{}, fmt.Errorf("balance response exceeds %d bytes", maxAdvancedCustomBalanceResponseBytes)
+	}
+
+	var validated json.RawMessage
+	if err := common.Unmarshal(body, &validated); err != nil {
+		return channelBalanceResult{}, fmt.Errorf("invalid balance JSON response: %w", err)
+	}
+	if common.GetJsonType(validated) == "object" {
+		var creditSummary struct {
+			Object         string          `json:"object"`
+			TotalAvailable json.RawMessage `json:"total_available"`
+		}
+		if err := common.Unmarshal(body, &creditSummary); err != nil {
+			return channelBalanceResult{}, fmt.Errorf("invalid balance JSON response: %w", err)
+		}
+		if creditSummary.Object == "credit_summary" &&
+			common.GetJsonType(creditSummary.TotalAvailable) == "number" {
+			var balance float64
+			if err := common.Unmarshal(creditSummary.TotalAvailable, &balance); err == nil &&
+				balance >= 0 &&
+				!math.IsNaN(balance) &&
+				!math.IsInf(balance, 0) {
+				channel.UpdateBalance(balance)
+				return channelBalanceResult{Balance: balance}, nil
+			}
+		}
+	}
+
+	formatted, err := common.IndentJson(body)
+	if err != nil {
+		return channelBalanceResult{}, fmt.Errorf("invalid balance JSON response: %w", err)
+	}
+	return channelBalanceResult{RawResponse: string(formatted)}, nil
+}
+
+func updateChannelBalance(channel *model.Channel) (channelBalanceResult, error) {
+	if channel.Type == constant.ChannelTypeAdvancedCustom {
+		return fetchAdvancedCustomBalance(channel)
+	}
+	balance, err := updateStandardChannelBalance(channel)
+	return channelBalanceResult{Balance: balance}, err
+}
+
+func updateStandardChannelBalance(channel *model.Channel) (float64, error) {
 	baseURL := constant.ChannelBaseURLs[channel.Type]
 	if channel.GetBaseURL() == "" {
 		channel.BaseURL = &baseURL
@@ -397,7 +502,7 @@ func updateChannelBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	subscription := OpenAISubscriptionResponse{}
-	err = json.Unmarshal(body, &subscription)
+	err = common.Unmarshal(body, &subscription)
 	if err != nil {
 		return 0, err
 	}
@@ -413,7 +518,7 @@ func updateChannelBalance(channel *model.Channel) (float64, error) {
 		return 0, err
 	}
 	usage := OpenAIUsageResponse{}
-	err = json.Unmarshal(body, &usage)
+	err = common.Unmarshal(body, &usage)
 	if err != nil {
 		return 0, err
 	}
@@ -440,16 +545,21 @@ func UpdateChannelBalance(c *gin.Context) {
 		})
 		return
 	}
-	balance, err := updateChannelBalance(channel)
+	result, err := updateChannelBalance(channel)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"message": "",
-		"balance": balance,
-	})
+	}
+	if result.RawResponse == "" {
+		response["balance"] = result.Balance
+	} else {
+		response["raw_response"] = result.RawResponse
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func updateAllChannelsBalance() error {
@@ -468,30 +578,32 @@ func updateAllChannelsBalance() error {
 		//if channel.Type != common.ChannelTypeOpenAI && channel.Type != common.ChannelTypeCustom {
 		//	continue
 		//}
-		balance, err := updateChannelBalance(channel)
+		result, err := updateChannelBalance(channel)
 		if err != nil {
 			continue
-		}
-		// err is nil & balance <= 0 means quota is used up
-		if balance <= 0 {
-			service.DisableChannel(*types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, "", channel.GetAutoBan()), "余额不足")
-		}
-		threshold := resolveBalanceAlertThreshold(channel, operation_setting.GetBalanceAlertThreshold())
-		switch checkChannelBalanceAlert(channel, balance, threshold) {
-		case balanceAlertNotify:
-			subject := fmt.Sprintf("渠道余额不足告警：通道「%s」（#%d）", channel.Name, channel.Id)
-			channelTypeName, ok := constant.ChannelTypeNames[channel.Type]
-			if !ok {
-				channelTypeName = strconv.Itoa(channel.Type)
+		} else if result.RawResponse == "" {
+			// err is nil & balance <= 0 means quota is used up
+			balance := result.Balance
+			if balance <= 0 {
+				service.DisableChannel(*types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, "", channel.GetAutoBan()), "余额不足")
 			}
-			queryTime := time.Unix(channel.BalanceUpdatedTime, 0).Format("2006-01-02 15:04:05")
-			content := fmt.Sprintf("通道「%s」（#%d）剩余额度 $%.2f 低于告警阈值 $%.2f（渠道类型：%s，查询时间：%s），请及时充值。", channel.Name, channel.Id, balance, threshold, channelTypeName, queryTime)
-			service.NotifyRootUser(fmt.Sprintf("%s_%d", dto.NotifyTypeBalanceAlert, channel.Id), subject, content)
-			channel.BalanceAlerted = true
-			channel.UpdateBalanceAlerted(true)
-		case balanceAlertRecover:
-			channel.BalanceAlerted = false
-			channel.UpdateBalanceAlerted(false)
+			threshold := resolveBalanceAlertThreshold(channel, operation_setting.GetBalanceAlertThreshold())
+			switch checkChannelBalanceAlert(channel, balance, threshold) {
+			case balanceAlertNotify:
+				subject := fmt.Sprintf("渠道余额不足告警：通道「%s」（#%d）", channel.Name, channel.Id)
+				channelTypeName, ok := constant.ChannelTypeNames[channel.Type]
+				if !ok {
+					channelTypeName = strconv.Itoa(channel.Type)
+				}
+				queryTime := time.Unix(channel.BalanceUpdatedTime, 0).Format("2006-01-02 15:04:05")
+				content := fmt.Sprintf("通道「%s」（#%d）剩余额度 $%.2f 低于告警阈值 $%.2f（渠道类型：%s，查询时间：%s），请及时充值。", channel.Name, channel.Id, balance, threshold, channelTypeName, queryTime)
+				service.NotifyRootUser(fmt.Sprintf("%s_%d", dto.NotifyTypeBalanceAlert, channel.Id), subject, content)
+				channel.BalanceAlerted = true
+				channel.UpdateBalanceAlerted(true)
+			case balanceAlertRecover:
+				channel.BalanceAlerted = false
+				channel.UpdateBalanceAlerted(false)
+			}
 		}
 		time.Sleep(common.RequestInterval)
 	}
