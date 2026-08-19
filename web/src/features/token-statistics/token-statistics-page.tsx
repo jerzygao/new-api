@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next'
 import { DatePicker } from '@/components/date-picker'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TIME_RANGE_PRESETS } from '@/features/dashboard/constants'
-import { getRollingDateRange } from '@/lib/time'
+import { getEndOfDay, getRollingDateRange, getStartOfDay } from '@/lib/time'
 
 import { UsageSummaryTables } from './components/usage-summary-tables'
 import { UserFilterSelect } from './components/user-filter-select'
@@ -81,7 +81,7 @@ export function TokenStatisticsPage() {
           selected={range.start}
           onSelect={(date) => {
             if (date) {
-              setRange((r) => ({ ...r, start: date }))
+              setRange((r) => ({ ...r, start: getStartOfDay(date) }))
               setActivePresetDays(null)
             }
           }}
@@ -94,7 +94,7 @@ export function TokenStatisticsPage() {
           selected={range.end}
           onSelect={(date) => {
             if (date) {
-              setRange((r) => ({ ...r, end: date }))
+              setRange((r) => ({ ...r, end: getEndOfDay(date) }))
               setActivePresetDays(null)
             }
           }}
