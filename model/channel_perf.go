@@ -37,14 +37,19 @@ func UpsertChannelPerfMetric(metric *ChannelPerfMetric) error {
 			{Name: "channel_id"},
 			{Name: "bucket_ts"},
 		},
+		// PostgreSQL rejects a table-qualified column on the SET left-hand side
+		// (e.g. "channel_perf_metrics"."request_count") with SQLSTATE 42703, so
+		// every flush upsert silently failed and channel_perf_metrics stayed empty.
+		// Use bare column names here, matching UpsertPerfMetric. The right-hand
+		// gorm.Expr may still reference the table-qualified column as a value.
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"channel_perf_metrics.request_count":    gorm.Expr("channel_perf_metrics.request_count + ?", metric.RequestCount),
-			"channel_perf_metrics.success_count":    gorm.Expr("channel_perf_metrics.success_count + ?", metric.SuccessCount),
-			"channel_perf_metrics.total_latency_ms": gorm.Expr("channel_perf_metrics.total_latency_ms + ?", metric.TotalLatencyMs),
-			"channel_perf_metrics.ttft_sum_ms":      gorm.Expr("channel_perf_metrics.ttft_sum_ms + ?", metric.TtftSumMs),
-			"channel_perf_metrics.ttft_count":       gorm.Expr("channel_perf_metrics.ttft_count + ?", metric.TtftCount),
-			"channel_perf_metrics.output_tokens":    gorm.Expr("channel_perf_metrics.output_tokens + ?", metric.OutputTokens),
-			"channel_perf_metrics.generation_ms":    gorm.Expr("channel_perf_metrics.generation_ms + ?", metric.GenerationMs),
+			"request_count":    gorm.Expr("channel_perf_metrics.request_count + ?", metric.RequestCount),
+			"success_count":    gorm.Expr("channel_perf_metrics.success_count + ?", metric.SuccessCount),
+			"total_latency_ms": gorm.Expr("channel_perf_metrics.total_latency_ms + ?", metric.TotalLatencyMs),
+			"ttft_sum_ms":      gorm.Expr("channel_perf_metrics.ttft_sum_ms + ?", metric.TtftSumMs),
+			"ttft_count":       gorm.Expr("channel_perf_metrics.ttft_count + ?", metric.TtftCount),
+			"output_tokens":    gorm.Expr("channel_perf_metrics.output_tokens + ?", metric.OutputTokens),
+			"generation_ms":    gorm.Expr("channel_perf_metrics.generation_ms + ?", metric.GenerationMs),
 		}),
 	}).Create(metric).Error
 }
