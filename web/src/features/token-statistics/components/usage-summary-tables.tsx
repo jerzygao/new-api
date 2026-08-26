@@ -115,7 +115,7 @@ export function SummaryTableCard(props: SummaryTableCardProps) {
   } else {
     tableBody = rows.map((row, index) => (
       <tr
-        key={row.username ?? row.use_group ?? `row-${index}`}
+        key={row.username || row.use_group || `row-${index}`}
         className='border-b last:border-b-0'
       >
         {columns.map((column) => (
