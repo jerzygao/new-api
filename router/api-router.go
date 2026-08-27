@@ -303,6 +303,8 @@ func SetApiRouter(router *gin.Engine) {
 		dataRoute.GET("/channels", middleware.AdminAuth(), controller.GetChannelUsageSummaries)
 		dataRoute.GET("/users/channel-tokens", middleware.AdminAuth(), controller.GetChannelTokenUsageByUser)
 		dataRoute.GET("/groups/channel-tokens", middleware.AdminAuth(), controller.GetChannelTokenUsageByGroup)
+		dataRoute.GET("/users/model-tokens", middleware.AdminAuth(), controller.GetModelTokenUsageByUser)
+		dataRoute.GET("/groups/model-tokens", middleware.AdminAuth(), controller.GetModelTokenUsageByGroup)
 		dataRoute.GET("/self", middleware.UserAuth(), controller.GetUserQuotaDates)
 		dataRoute.GET("/flow", middleware.AdminAuth(), controller.GetAllFlowQuotaDates)
 		dataRoute.GET("/flow/self", middleware.UserAuth(), controller.GetUserFlowQuotaDates)

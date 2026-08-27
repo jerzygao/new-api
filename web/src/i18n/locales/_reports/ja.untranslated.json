@@ -5,6 +5,9 @@
   "Request count": "Request count",
   "Time range": "Time range",
   "Channel Performance": "Channel Performance",
+  "Group Model Token Usage": "Group Model Token Usage",
+  "Model Token Usage": "Model Token Usage",
   "Search users": "Search users",
-  "Token Statistics": "Token Statistics"
+  "Token Statistics": "Token Statistics",
+  "User Model Token Usage": "User Model Token Usage"
 }

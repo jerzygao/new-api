@@ -298,3 +298,38 @@ func GetChannelTokenUsageByGroup(c *gin.Context) {
 		"data":    rows,
 	})
 }
+
+func GetModelTokenUsageByUser(c *gin.Context) {
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	userIDs, err := parseUserIDs(c.Query("user_ids"))
+	if err != nil {
+		common.ApiErrorMsg(c, err.Error())
+		return
+	}
+	rows, err := model.GetModelTokenUsageByUser(startTimestamp, endTimestamp, userIDs)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    rows,
+	})
+}
+
+func GetModelTokenUsageByGroup(c *gin.Context) {
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	rows, err := model.GetModelTokenUsageByGroup(startTimestamp, endTimestamp)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    rows,
+	})
+}

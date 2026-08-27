@@ -307,3 +307,120 @@ func TestGetChannelTokenUsageByUserWithUserFilter(t *testing.T) {
 	assert.Equal(t, 2, bobCarolRows[1].ChannelID)
 	assert.Equal(t, 25, bobCarolRows[1].TokenUsed)
 }
+
+func TestGetModelTokenUsageByUser(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	rows, err := GetModelTokenUsageByUser(base, base+3600, nil)
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+
+	// 按 token_used 降序：alice/gpt-4o(300) > bob/gpt-4o-mini(50) > carol/claude-3(25)
+	// alice 的两条行（100+200）同 username+model_name 聚合为 300
+	assert.Equal(t, "alice", rows[0].Username)
+	assert.Equal(t, "gpt-4o", rows[0].ModelName)
+	assert.Equal(t, 300, rows[0].TokenUsed)
+
+	assert.Equal(t, "bob", rows[1].Username)
+	assert.Equal(t, "gpt-4o-mini", rows[1].ModelName)
+	assert.Equal(t, 50, rows[1].TokenUsed)
+
+	assert.Equal(t, "carol", rows[2].Username)
+	assert.Equal(t, "claude-3", rows[2].ModelName)
+	assert.Equal(t, 25, rows[2].TokenUsed)
+
+	// 时间范围过滤：只查第一小时，排除第二小时的 carol
+	rangeRows, err := GetModelTokenUsageByUser(base, base, nil)
+	require.NoError(t, err)
+	require.Len(t, rangeRows, 2)
+	assert.Equal(t, "alice", rangeRows[0].Username)
+	assert.Equal(t, "bob", rangeRows[1].Username)
+}
+
+func TestGetModelTokenUsageByUserExcludesEmptyModel(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+	// 插入一条落在查询时间范围内的空模型名行，验证被排除
+	require.NoError(t, DB.Create(&QuotaData{
+		UserID: 4, Username: "legacy", ModelName: "", CreatedAt: base, UseGroup: "default",
+		TokenID: 9, ChannelID: 1, TokenUsed: 999, Count: 1, Quota: 9999,
+	}).Error)
+
+	rows, err := GetModelTokenUsageByUser(base, base+3600, nil)
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	for _, row := range rows {
+		assert.NotEqual(t, 999, row.TokenUsed)
+		assert.NotEqual(t, "", row.ModelName)
+	}
+}
+
+func TestGetModelTokenUsageByGroup(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	rows, err := GetModelTokenUsageByGroup(base, base+3600)
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+
+	// 按 token_used 降序：default/gpt-4o(300) > vip/gpt-4o-mini(50) > vip/claude-3(25)
+	assert.Equal(t, "default", rows[0].UseGroup)
+	assert.Equal(t, "gpt-4o", rows[0].ModelName)
+	assert.Equal(t, 300, rows[0].TokenUsed)
+
+	assert.Equal(t, "vip", rows[1].UseGroup)
+	assert.Equal(t, "gpt-4o-mini", rows[1].ModelName)
+	assert.Equal(t, 50, rows[1].TokenUsed)
+
+	assert.Equal(t, "vip", rows[2].UseGroup)
+	assert.Equal(t, "claude-3", rows[2].ModelName)
+	assert.Equal(t, 25, rows[2].TokenUsed)
+}
+
+func TestGetModelTokenUsageByUserWithUserFilter(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	// userIDs=[1] → 仅 alice/gpt-4o(300)
+	aliceRows, err := GetModelTokenUsageByUser(base, base+3600, []int{1})
+	require.NoError(t, err)
+	require.Len(t, aliceRows, 1)
+	assert.Equal(t, "alice", aliceRows[0].Username)
+	assert.Equal(t, "gpt-4o", aliceRows[0].ModelName)
+	assert.Equal(t, 300, aliceRows[0].TokenUsed)
+
+	// userIDs=[2,3] → bob/gpt-4o-mini(50) 与 carol/claude-3(25)，按 token_used 降序
+	bobCarolRows, err := GetModelTokenUsageByUser(base, base+3600, []int{2, 3})
+	require.NoError(t, err)
+	require.Len(t, bobCarolRows, 2)
+	assert.Equal(t, "bob", bobCarolRows[0].Username)
+	assert.Equal(t, "gpt-4o-mini", bobCarolRows[0].ModelName)
+	assert.Equal(t, 50, bobCarolRows[0].TokenUsed)
+	assert.Equal(t, "carol", bobCarolRows[1].Username)
+	assert.Equal(t, "claude-3", bobCarolRows[1].ModelName)
+	assert.Equal(t, 25, bobCarolRows[1].TokenUsed)
+
+	// userIDs=nil → 全部 3 条
+	allRows, err := GetModelTokenUsageByUser(base, base+3600, nil)
+	require.NoError(t, err)
+	require.Len(t, allRows, 3)
+}
+
+func TestGetModelTokenUsageEmptyRange(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	userRows, err := GetModelTokenUsageByUser(base+7200, base+7200, nil)
+	require.NoError(t, err)
+	assert.Empty(t, userRows)
+
+	groupRows, err := GetModelTokenUsageByGroup(base+7200, base+7200)
+	require.NoError(t, err)
+	assert.Empty(t, groupRows)
+}

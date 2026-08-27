@@ -127,6 +127,12 @@ const LazyTokenStatistics = lazy(() =>
   }))
 )
 
+const LazyModelStatistics = lazy(() =>
+  import('@/features/model-statistics/model-statistics-page').then((m) => ({
+    default: m.ModelStatisticsPage,
+  }))
+)
+
 function LogStatCardsFallback() {
   return (
     <div className='overflow-hidden rounded-lg border'>
@@ -206,6 +212,9 @@ const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
   'token-statistics': {
     titleKey: 'Token Statistics',
   },
+  'model-statistics': {
+    titleKey: 'Model Token Usage',
+  },
   'channel-performance': {
     titleKey: 'Channel Performance',
   },
@@ -272,6 +281,7 @@ export function Dashboard() {
           section !== 'overview' &&
           ((section !== 'users' &&
             section !== 'token-statistics' &&
+            section !== 'model-statistics' &&
             section !== 'channel-performance') ||
             isAdmin)
       ),
@@ -446,6 +456,13 @@ export function Dashboard() {
             <FadeIn>
               <Suspense fallback={<ModelChartsFallback />}>
                 <LazyTokenStatistics />
+              </Suspense>
+            </FadeIn>
+          )}
+          {activeSection === 'model-statistics' && (
+            <FadeIn>
+              <Suspense fallback={<ModelChartsFallback />}>
+                <LazyModelStatistics />
               </Suspense>
             </FadeIn>
           )}

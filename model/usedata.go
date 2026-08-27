@@ -307,3 +307,39 @@ func ResolveChannelNames(channelIDs []int) (map[int]string, error) {
 	}
 	return nameByID, nil
 }
+
+// ModelDimensionTokenUsage 模型维度下的用量（按人 / 按分组，一次只填一个维度）
+type ModelDimensionTokenUsage struct {
+	Username  string `json:"username"`
+	UseGroup  string `json:"use_group"`
+	ModelName string `json:"model_name"`
+	TokenUsed int    `json:"token_used"`
+}
+
+// GetModelTokenUsageByUser 按 username + model_name 汇总 token 用量，排除空模型名行，按 token_used 降序
+// userIDs 非空时只统计这些用户
+func GetModelTokenUsageByUser(startTime int64, endTime int64, userIDs []int) (rows []*ModelDimensionTokenUsage, err error) {
+	query := DB.Table("quota_data").
+		Select("username, model_name, sum(token_used) as token_used").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime).
+		Where("model_name != ''")
+	if len(userIDs) > 0 {
+		query = query.Where("user_id IN ?", userIDs)
+	}
+	err = query.Group("username, model_name").
+		Order("token_used desc").
+		Find(&rows).Error
+	return rows, err
+}
+
+// GetModelTokenUsageByGroup 按 use_group + model_name 汇总 token 用量，排除空模型名行，按 token_used 降序
+func GetModelTokenUsageByGroup(startTime int64, endTime int64) (rows []*ModelDimensionTokenUsage, err error) {
+	err = DB.Table("quota_data").
+		Select("use_group, model_name, sum(token_used) as token_used").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime).
+		Where("model_name != ''").
+		Group("use_group, model_name").
+		Order("token_used desc").
+		Find(&rows).Error
+	return rows, err
+}
