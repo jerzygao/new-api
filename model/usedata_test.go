@@ -424,3 +424,26 @@ func TestGetModelTokenUsageEmptyRange(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, groupRows)
 }
+
+func TestGetModelTokenUsageByUserExcludesRoot(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+	// 插入 root 用户的行，验证按用户报表排除 root
+	require.NoError(t, DB.Create(&QuotaData{
+		UserID: 100, Username: "root", ModelName: "gpt-4o", CreatedAt: base, UseGroup: "default",
+		TokenID: 99, ChannelID: 1, TokenUsed: 99999, Count: 1, Quota: 99999,
+	}).Error)
+
+	rows, err := GetModelTokenUsageByUser(base, base+3600, nil)
+	require.NoError(t, err)
+	for _, row := range rows {
+		assert.NotEqual(t, "root", row.Username)
+		assert.NotEqual(t, 99999, row.TokenUsed)
+	}
+
+	// root 即便在 userIDs 显式指定时也被排除
+	rootRows, err := GetModelTokenUsageByUser(base, base+3600, []int{100})
+	require.NoError(t, err)
+	assert.Empty(t, rootRows)
+}

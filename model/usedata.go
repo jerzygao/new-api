@@ -316,13 +316,14 @@ type ModelDimensionTokenUsage struct {
 	TokenUsed int    `json:"token_used"`
 }
 
-// GetModelTokenUsageByUser 按 username + model_name 汇总 token 用量，排除空模型名行，按 token_used 降序
+// GetModelTokenUsageByUser 按 username + model_name 汇总 token 用量，排除空模型名行与 root 用户，按 token_used 降序
 // userIDs 非空时只统计这些用户
 func GetModelTokenUsageByUser(startTime int64, endTime int64, userIDs []int) (rows []*ModelDimensionTokenUsage, err error) {
 	query := DB.Table("quota_data").
 		Select("username, model_name, sum(token_used) as token_used").
 		Where("created_at >= ? and created_at <= ?", startTime, endTime).
-		Where("model_name != ''")
+		Where("model_name != ''").
+		Where("username != 'root'")
 	if len(userIDs) > 0 {
 		query = query.Where("user_id IN ?", userIDs)
 	}

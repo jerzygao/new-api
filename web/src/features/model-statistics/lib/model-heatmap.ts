@@ -20,8 +20,12 @@ import type { ChannelHeatmapMatrix } from '@/features/token-statistics/lib/chann
 
 import type { ModelDimensionTokenUsage } from '../types'
 
+// 模型列总量低于此阈值不显示（含 0），避免长尾小模型淹没主信息
+export const MIN_MODEL_TOKENS = 10_000
+
 // 把扁平的 (用户/分组 × 模型) token 用量行构建成热力图矩阵：
-// 行按跨模型总量降序取前 topLimit，列按跨行总量降序，单元格为该行×该列 token_used（缺失为 0）。
+// 列只保留总量 >= MIN_MODEL_TOKENS 的模型（< 10K 或无用量不显示），按总量降序；
+// 行按保留列上的总量降序取前 topLimit；单元格为该行×该列 token_used（缺失为 0）。
 export function buildModelHeatmap(
   rows: ModelDimensionTokenUsage[],
   topLimit: number
@@ -30,16 +34,13 @@ export function buildModelHeatmap(
   const rowKey = (row: ModelDimensionTokenUsage): string =>
     row.username || row.use_group
 
-  // 列：模型名直接作列名，无需 id→name 映射
-  // 行聚合：rowKey → 总量；列聚合：model_name → 总量
-  const rowTotals = new Map<string, number>()
+  // 列总量与单元格累加
   const columnTotals = new Map<string, number>()
   const valueByKey = new Map<string, Map<string, number>>()
   for (const row of rows) {
     const key = rowKey(row)
     const model = row.model_name
     const value = row.token_used
-    rowTotals.set(key, (rowTotals.get(key) ?? 0) + value)
     columnTotals.set(model, (columnTotals.get(model) ?? 0) + value)
     let valueMap = valueByKey.get(key)
     if (!valueMap) {
@@ -49,14 +50,30 @@ export function buildModelHeatmap(
     valueMap.set(model, (valueMap.get(model) ?? 0) + value)
   }
 
-  // 行按总量降序取前 topLimit；列按总量降序
+  // 列过滤：只保留总量 >= MIN_MODEL_TOKENS 的模型，按总量降序
+  const columnLabels = [...columnTotals.entries()]
+    .filter(([, total]) => total >= MIN_MODEL_TOKENS)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name)
+
+  // 没有模型达到阈值时返回空矩阵（触发 "No data"）
+  if (columnLabels.length === 0) {
+    return { rowLabels: [], columnLabels: [], cells: [], maxValue: 0 }
+  }
+
+  // 行总量基于保留列重算，按降序取前 topLimit
+  const rowTotals = new Map<string, number>()
+  for (const [key, valueMap] of valueByKey) {
+    let total = 0
+    for (const model of columnLabels) {
+      total += valueMap.get(model) ?? 0
+    }
+    rowTotals.set(key, total)
+  }
   const rowLabels = [...rowTotals.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, topLimit)
     .map(([key]) => key)
-  const columnLabels = [...columnTotals.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([name]) => name)
 
   const cells = rowLabels.map((key) =>
     columnLabels.map((model) => valueByKey.get(key)?.get(model) ?? 0)
