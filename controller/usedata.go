@@ -333,3 +333,25 @@ func GetModelTokenUsageByGroup(c *gin.Context) {
 		"data":    rows,
 	})
 }
+
+func GetModelTokenUsageSummary(c *gin.Context) {
+	startTimestamp, endTimestamp, ok := parseFlowQuotaTimeRange(c)
+	if !ok {
+		return
+	}
+	userIDs, err := parseUserIDs(c.Query("user_ids"))
+	if err != nil {
+		common.ApiErrorMsg(c, err.Error())
+		return
+	}
+	rows, err := model.GetModelTokenUsageSummary(startTimestamp, endTimestamp, userIDs)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    rows,
+	})
+}

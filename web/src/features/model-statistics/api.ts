@@ -18,7 +18,10 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
 
-import type { ModelDimensionTokenUsage } from './types'
+import type {
+  ModelDimensionTokenUsage,
+  ModelTokenUsageSummary,
+} from './types'
 
 // Get per-user per-model token usage within a time range (admin only)
 export async function getUserModelTokenUsage(params: {
@@ -48,5 +51,24 @@ export async function getGroupModelTokenUsage(params: {
     success: boolean
     data: ModelDimensionTokenUsage[]
   }>('/api/data/groups/model-tokens', { params })
+  return res.data
+}
+
+// Get per-model token usage summary within a time range (admin only)
+export async function getModelTokenUsage(params: {
+  start_timestamp: number
+  end_timestamp: number
+  user_ids?: number[]
+}) {
+  const { user_ids, ...rest } = params
+  const res = await api.get<{
+    success: boolean
+    data: ModelTokenUsageSummary[]
+  }>('/api/data/models/tokens', {
+    params: {
+      ...rest,
+      user_ids: user_ids?.length ? user_ids.join(',') : undefined,
+    },
+  })
   return res.data
 }

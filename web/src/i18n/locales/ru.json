@@ -2773,6 +2773,7 @@
     "Model Square": "Витрина моделей",
     "Model Tags": "Теги моделей",
     "Model Token Usage": "Model Token Usage",
+    "Model Token Usage Ranking": "Model Token Usage Ranking",
     "Model to use for testing": "Модель для использования при тестировании",
     "Model to use when testing channel connectivity": "Модель для использования при тестировании подключения канала",
     "Model Version *": "Версия модели *",

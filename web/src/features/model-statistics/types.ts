@@ -22,3 +22,9 @@ export interface ModelDimensionTokenUsage {
   model_name: string
   token_used: number
 }
+
+export interface ModelTokenUsageSummary {
+  model_name: string
+  token_used: number
+  count: number
+}

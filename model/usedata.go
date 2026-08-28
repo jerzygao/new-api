@@ -344,3 +344,27 @@ func GetModelTokenUsageByGroup(startTime int64, endTime int64) (rows []*ModelDim
 		Find(&rows).Error
 	return rows, err
 }
+
+// ModelTokenUsageSummary 按模型汇总的用量统计
+type ModelTokenUsageSummary struct {
+	ModelName string `json:"model_name"`
+	TokenUsed int    `json:"token_used"`
+	Count     int    `json:"count"`
+}
+
+// GetModelTokenUsageSummary 按 model_name 汇总 token 用量与调用次数，排除空模型名行与 root 用户，按 token_used 降序
+// userIDs 非空时只统计这些用户
+func GetModelTokenUsageSummary(startTime int64, endTime int64, userIDs []int) (rows []*ModelTokenUsageSummary, err error) {
+	query := DB.Table("quota_data").
+		Select("model_name, sum(token_used) as token_used, sum(count) as count").
+		Where("created_at >= ? and created_at <= ?", startTime, endTime).
+		Where("model_name != ''").
+		Where("username != 'root'")
+	if len(userIDs) > 0 {
+		query = query.Where("user_id IN ?", userIDs)
+	}
+	err = query.Group("model_name").
+		Order("token_used desc").
+		Find(&rows).Error
+	return rows, err
+}

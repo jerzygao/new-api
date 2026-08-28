@@ -2773,6 +2773,7 @@
     "Model Square": "模型廣場",
     "Model Tags": "模型標籤",
     "Model Token Usage": "模型 Token 用量",
+    "Model Token Usage Ranking": "模型 Token 消耗排行",
     "Model to use for testing": "用於測試的模型",
     "Model to use when testing channel connectivity": "測試渠道連接時使用的模型",
     "Model Version *": "模型版本 *",

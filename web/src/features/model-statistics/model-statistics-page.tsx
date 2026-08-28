@@ -29,6 +29,7 @@ import {
   GroupModelUsageHeatmap,
   UserModelUsageHeatmap,
 } from './components/model-usage-heatmap'
+import { ModelTokenUsageRanking } from './components/model-usage-ranking'
 
 const TOP_USER_LIMIT_OPTIONS = [5, 10, 20, 50]
 
@@ -128,6 +129,10 @@ export function ModelStatisticsPage() {
       </div>
 
       <div className='mt-3 grid gap-3'>
+        <ModelTokenUsageRanking
+          timeRange={timeRange}
+          userIds={userIds}
+        />
         <UserModelUsageHeatmap
           timeRange={timeRange}
           topLimit={topUserLimit}

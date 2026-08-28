@@ -2773,6 +2773,7 @@
     "Model Square": "モデル広場",
     "Model Tags": "モデルタグ",
     "Model Token Usage": "Model Token Usage",
+    "Model Token Usage Ranking": "Model Token Usage Ranking",
     "Model to use for testing": "テストに使用するモデル",
     "Model to use when testing channel connectivity": "チャネル接続性をテストする際に使用するモデル",
     "Model Version *": "モデルバージョン *",

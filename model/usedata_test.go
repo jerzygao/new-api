@@ -447,3 +447,101 @@ func TestGetModelTokenUsageByUserExcludesRoot(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, rootRows)
 }
+
+func TestGetModelTokenUsageSummary(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+	// bob 也用 gpt-4o，验证同模型跨用户多行聚合为一行
+	require.NoError(t, DB.Create(&QuotaData{
+		UserID: 2, Username: "bob", ModelName: "gpt-4o", CreatedAt: base, UseGroup: "vip",
+		TokenID: 5, ChannelID: 1, TokenUsed: 30, Count: 1, Quota: 300,
+	}).Error)
+
+	rows, err := GetModelTokenUsageSummary(base, base+3600, nil)
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+
+	// 按 token_used 降序：gpt-4o(330) > gpt-4o-mini(50) > claude-3(25)
+	// gpt-4o 聚合了 alice(100+200) 与 bob(30) 共 3 行 → 330 token / 3 count
+	assert.Equal(t, "gpt-4o", rows[0].ModelName)
+	assert.Equal(t, 330, rows[0].TokenUsed)
+	assert.Equal(t, 3, rows[0].Count)
+
+	assert.Equal(t, "gpt-4o-mini", rows[1].ModelName)
+	assert.Equal(t, 50, rows[1].TokenUsed)
+	assert.Equal(t, 1, rows[1].Count)
+
+	assert.Equal(t, "claude-3", rows[2].ModelName)
+	assert.Equal(t, 25, rows[2].TokenUsed)
+	assert.Equal(t, 2, rows[2].Count)
+}
+
+func TestGetModelTokenUsageSummaryExcludesRoot(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+	// 插入 root 用户的行，验证排除 root
+	require.NoError(t, DB.Create(&QuotaData{
+		UserID: 100, Username: "root", ModelName: "gpt-4o", CreatedAt: base, UseGroup: "default",
+		TokenID: 99, ChannelID: 1, TokenUsed: 99999, Count: 1, Quota: 99999,
+	}).Error)
+
+	rows, err := GetModelTokenUsageSummary(base, base+3600, nil)
+	require.NoError(t, err)
+	for _, row := range rows {
+		assert.NotEqual(t, 99999, row.TokenUsed)
+	}
+
+	// root 即便在 userIDs 显式指定时也被排除
+	rootRows, err := GetModelTokenUsageSummary(base, base+3600, []int{100})
+	require.NoError(t, err)
+	assert.Empty(t, rootRows)
+}
+
+func TestGetModelTokenUsageSummaryExcludesEmptyModel(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+	// 插入空模型名行，验证被排除
+	require.NoError(t, DB.Create(&QuotaData{
+		UserID: 4, Username: "legacy", ModelName: "", CreatedAt: base, UseGroup: "default",
+		TokenID: 9, ChannelID: 1, TokenUsed: 999, Count: 1, Quota: 9999,
+	}).Error)
+
+	rows, err := GetModelTokenUsageSummary(base, base+3600, nil)
+	require.NoError(t, err)
+	require.Len(t, rows, 3) // gpt-4o, gpt-4o-mini, claude-3
+	for _, row := range rows {
+		assert.NotEqual(t, "", row.ModelName)
+		assert.NotEqual(t, 999, row.TokenUsed)
+	}
+}
+
+func TestGetModelTokenUsageSummaryWithUserFilter(t *testing.T) {
+	truncateTables(t)
+	createQuotaDataTestRows(t)
+	base := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Unix()
+
+	// userIDs=[1] → 仅 alice 的 gpt-4o(300)，count=2（两条行聚合）
+	aliceRows, err := GetModelTokenUsageSummary(base, base+3600, []int{1})
+	require.NoError(t, err)
+	require.Len(t, aliceRows, 1)
+	assert.Equal(t, "gpt-4o", aliceRows[0].ModelName)
+	assert.Equal(t, 300, aliceRows[0].TokenUsed)
+	assert.Equal(t, 2, aliceRows[0].Count)
+
+	// userIDs=[2,3] → bob/gpt-4o-mini(50) 与 carol/claude-3(25)，按 token_used 降序
+	bobCarolRows, err := GetModelTokenUsageSummary(base, base+3600, []int{2, 3})
+	require.NoError(t, err)
+	require.Len(t, bobCarolRows, 2)
+	assert.Equal(t, "gpt-4o-mini", bobCarolRows[0].ModelName)
+	assert.Equal(t, 50, bobCarolRows[0].TokenUsed)
+	assert.Equal(t, "claude-3", bobCarolRows[1].ModelName)
+	assert.Equal(t, 25, bobCarolRows[1].TokenUsed)
+
+	// userIDs=nil → 全部 3 个模型
+	allRows, err := GetModelTokenUsageSummary(base, base+3600, nil)
+	require.NoError(t, err)
+	require.Len(t, allRows, 3)
+}
