@@ -8,6 +8,7 @@ upload
 *.db
 build
 *.db-journal
+*.db.bak
 logs
 web/dist
 web/node_modules
@@ -24,6 +25,7 @@ tiktoken_cache
 .plans
 .claude
 .cursor
+.serena
 
 electron/node_modules
 electron/dist
@@ -45,3 +47,6 @@ go.work.sum
 
 # Visual brainstorming session artifacts
 .superpowers/
+
+# Local superpowers planning docs
+docs/superpowers/plans/
