@@ -9,6 +9,8 @@ upload
 build
 *.db-journal
 *.db.bak
+*.db-shm
+*.db-wal
 logs
 web/dist
 web/node_modules
