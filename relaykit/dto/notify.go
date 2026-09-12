@@ -13,7 +13,6 @@ const (
 	NotifyTypeQuotaExceed   = "quota_exceed"
 	NotifyTypeChannelUpdate = "channel_update"
 	NotifyTypeChannelTest   = "channel_test"
-	NotifyTypeBalanceAlert  = "balance_alert"
 )
 
 func NewNotify(t string, title string, content string, values []any) Notify {

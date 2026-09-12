@@ -79,7 +79,6 @@ const CONFIGURATION_BLOCKS = {
       'proxy',
       'http_protocol',
       'http2_connection_shards',
-      'balance_alert_threshold',
       'disable_task_polling_sleep',
     ],
   },
@@ -167,7 +166,6 @@ export function getChannelConfigurationState(
       values.proxy?.trim() ||
       (values.http_protocol && values.http_protocol !== 'auto') ||
       (values.http2_connection_shards ?? 1) > 1 ||
-      values.balance_alert_threshold != null ||
       values.disable_task_polling_sleep
     ),
     upstreamModelDetection:

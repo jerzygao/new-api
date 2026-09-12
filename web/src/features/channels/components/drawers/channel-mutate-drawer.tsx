@@ -268,7 +268,6 @@ const SENSITIVE_FORM_FIELDS = [
   'proxy',
   'http_protocol',
   'http2_connection_shards',
-  'balance_alert_threshold',
   'pass_through_body_enabled',
   'system_prompt',
   'system_prompt_override',
@@ -1802,38 +1801,6 @@ export function ChannelMutateDrawer({
           </FormItem>
         )
       }}
-    />
-  )
-
-  const balanceAlertThresholdFields = (
-    <FormField
-      control={form.control}
-      name='balance_alert_threshold'
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{t('Balance Alert Threshold')}</FormLabel>
-          <FormControl>
-            <Input
-              type='number'
-              min={0}
-              step='0.01'
-              value={field.value ?? ''}
-              onChange={(e) =>
-                field.onChange(
-                  e.target.value === '' ? undefined : Number(e.target.value)
-                )
-              }
-              className='w-32'
-            />
-          </FormControl>
-          <FormDescription>
-            {t(
-              'Alert when the channel balance (USD) drops below this value. Leave empty to use the global default, 0 to disable.'
-            )}
-          </FormDescription>
-          <FormMessage />
-        </FormItem>
-      )}
     />
   )
 
@@ -4204,7 +4171,6 @@ export function ChannelMutateDrawer({
                 {proxyFields}
                 {httpProtocolFields}
                 {httpShardsFields}
-                {balanceAlertThresholdFields}
               </fieldset>
             </div>
             {upstreamModelDetectionFields}

@@ -12,7 +12,6 @@ type MonitorSetting struct {
 	AutoTestChannelEnabled bool    `json:"auto_test_channel_enabled"`
 	AutoTestChannelMinutes float64 `json:"auto_test_channel_minutes"`
 	ChannelTestMode        string  `json:"channel_test_mode"`
-	BalanceAlertThreshold  float64 `json:"balance_alert_threshold"`
 	ChannelTestConcurrency int     `json:"channel_test_concurrency"`
 }
 
@@ -31,7 +30,6 @@ var monitorSetting = MonitorSetting{
 	AutoTestChannelEnabled: false,
 	AutoTestChannelMinutes: 10,
 	ChannelTestMode:        ChannelTestModeScheduledAll,
-	BalanceAlertThreshold:  10,
 	ChannelTestConcurrency: DefaultChannelTestConcurrency,
 }
 
@@ -62,20 +60,6 @@ func GetMonitorSetting() *MonitorSetting {
 	}
 	monitorSetting.ChannelTestConcurrency = NormalizeChannelTestConcurrency(monitorSetting.ChannelTestConcurrency)
 	return &monitorSetting
-}
-
-// GetBalanceAlertThreshold 返回全局余额告警阈值（USD）。0 表示关闭全局告警。
-func GetBalanceAlertThreshold() float64 {
-	if v := os.Getenv("BALANCE_ALERT_THRESHOLD"); v != "" {
-		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
-			return parsed
-		}
-	}
-	cfg := config.GlobalConfig.Get("monitor_setting")
-	if cfg == nil {
-		return 10
-	}
-	return cfg.(*MonitorSetting).BalanceAlertThreshold
 }
 
 func NormalizeChannelTestConcurrency(concurrency int) int {
