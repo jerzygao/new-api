@@ -60,20 +60,8 @@ const numericString = z.string().refine((value) => {
   return !Number.isNaN(Number(trimmed)) && Number(trimmed) >= 0
 }, 'Enter a non-negative number or leave empty')
 
-// Balance alert threshold must not be silently cleared: an empty value would
-// fail backend parsing while the UI reported success. Require a valid value.
-const balanceAlertThresholdString = z
-  .string()
-  .min(1, 'Enter a non-negative number')
-  .refine((value) => {
-    return !Number.isNaN(Number(value)) && Number(value) >= 0
-  }, 'Enter a non-negative number')
-
 const monitoringSchema = z.object({
   QuotaRemindThreshold: numericString,
-  monitor_setting: z.object({
-    balance_alert_threshold: balanceAlertThresholdString,
-  }),
   perf_metrics_setting: z.object({
     enabled: z.boolean(),
     flush_interval: z.coerce.number().min(1),
@@ -87,7 +75,6 @@ type MonitoringFormValues = z.output<typeof monitoringSchema>
 
 type FlatMonitoringDefaults = {
   QuotaRemindThreshold: string
-  'monitor_setting.balance_alert_threshold': string
   'perf_metrics_setting.enabled': boolean
   'perf_metrics_setting.flush_interval': number
   'perf_metrics_setting.bucket_time': 'minute' | '5min' | 'hour'
@@ -102,11 +89,6 @@ const buildFormDefaults = (
   defaults: MonitoringSettingsSectionProps['defaultValues']
 ): MonitoringFormInput => ({
   QuotaRemindThreshold: defaults.QuotaRemindThreshold ?? '',
-  monitor_setting: {
-    balance_alert_threshold: String(
-      defaults['monitor_setting.balance_alert_threshold']
-    ),
-  },
   perf_metrics_setting: {
     enabled: defaults['perf_metrics_setting.enabled'],
     flush_interval: defaults['perf_metrics_setting.flush_interval'],
@@ -119,9 +101,6 @@ const normalizeDefaults = (
   defaults: MonitoringSettingsSectionProps['defaultValues']
 ): FlatMonitoringDefaults => ({
   QuotaRemindThreshold: (defaults.QuotaRemindThreshold ?? '').trim(),
-  'monitor_setting.balance_alert_threshold': (
-    defaults['monitor_setting.balance_alert_threshold'] ?? ''
-  ).trim(),
   'perf_metrics_setting.enabled': defaults['perf_metrics_setting.enabled'],
   'perf_metrics_setting.flush_interval':
     defaults['perf_metrics_setting.flush_interval'],
@@ -135,8 +114,6 @@ const normalizeFormValues = (
   values: MonitoringFormValues
 ): FlatMonitoringDefaults => ({
   QuotaRemindThreshold: values.QuotaRemindThreshold.trim(),
-  'monitor_setting.balance_alert_threshold':
-    values.monitor_setting.balance_alert_threshold.trim(),
   'perf_metrics_setting.enabled': values.perf_metrics_setting.enabled,
   'perf_metrics_setting.flush_interval':
     values.perf_metrics_setting.flush_interval,
@@ -226,32 +203,6 @@ export function MonitoringSettingsSection({
                 </FormControl>
                 <FormDescription>
                   {t('Send email alerts when a user falls below this quota')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name='monitor_setting.balance_alert_threshold'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('Channel Balance Alert Threshold (USD)')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    min={0}
-                    step='0.01'
-                    value={field.value}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
-                    'Global default alert threshold for channel balance. 0 disables the alert. Per-channel settings override this.'
-                  )}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
