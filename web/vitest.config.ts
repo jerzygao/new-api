@@ -34,7 +34,7 @@ export default defineConfig({
     server: {
       deps: { inline: [/@lobehub\//, /antd-style/] },
     },
-    setupFiles: ['./src/test-setup.ts'],
+    setupFiles: ['./src/test-setup.ts', './src/test-setup.local.ts'],
     // Several heavy jsdom suites (channel-configuration, visual-billing-editor)
     // legitimately take >5s per test on contended CI runners; the vitest
     // default of 5000ms fails whichever of them crosses the line first. The
