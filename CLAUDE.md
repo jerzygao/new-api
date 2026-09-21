@@ -15,6 +15,7 @@ Rules:
 - Do not replace the Read with a grep, glob, or partial skim.
 - After reading, follow every rule in `AGENTS.md` for the rest of the work.
 - If the task touches `web/`, also Read `web/AGENTS.md` before editing frontend files.
+- If the task touches billing as defined under **Billing rules (mandatory read gate)** in `AGENTS.md`, also Read `.agents/rules/billing.md` in full before planning or editing. Tasks outside that definition may skip it.
 
 The shared conventions in `AGENTS.md` (tech stack, directory map, backend/frontend rules, billing invariants, i18n, governance) are the source of truth and apply in full. This file only adds the concrete build/test commands and a few big-picture notes that require reading multiple files to understand.
 
