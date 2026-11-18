@@ -25,7 +25,7 @@ export type ChannelPerfBucketPoint = {
 }
 
 export type ChannelModelSummary = {
-  channel_id: number
+  channel_id?: number
   model_name: string
   avg_latency_ms: number
   avg_ttft_ms: number
@@ -50,6 +50,7 @@ export type ChannelPerfSummaryData = {
   message?: string
   data: {
     summaries: ChannelModelSummary[]
+    models?: string[]
   }
 }
 

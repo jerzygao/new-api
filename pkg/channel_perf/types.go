@@ -20,13 +20,13 @@ type QueryParams struct {
 }
 
 type ChannelModelSummary struct {
-	ChannelId     int     `json:"channel_id"`
-	ModelName     string  `json:"model_name"`
-	AvgLatencyMs  int64   `json:"avg_latency_ms"`
-	AvgTtftMs     int64   `json:"avg_ttft_ms"`
-	SuccessRate   float64 `json:"success_rate"`
-	AvgTps        float64 `json:"avg_tps"`
-	RequestCount  int64   `json:"request_count"`
+	ChannelId    int     `json:"channel_id"`
+	ModelName    string  `json:"model_name"`
+	AvgLatencyMs int64   `json:"avg_latency_ms"`
+	AvgTtftMs    int64   `json:"avg_ttft_ms"`
+	SuccessRate  float64 `json:"success_rate"`
+	AvgTps       float64 `json:"avg_tps"`
+	RequestCount int64   `json:"request_count"`
 }
 
 type BucketPoint struct {
@@ -38,14 +38,14 @@ type BucketPoint struct {
 }
 
 type ChannelModelSeries struct {
-	ChannelId     int           `json:"channel_id"`
-	ModelName     string        `json:"model_name"`
-	AvgLatencyMs  int64         `json:"avg_latency_ms"`
-	AvgTtftMs     int64         `json:"avg_ttft_ms"`
-	SuccessRate   float64       `json:"success_rate"`
-	AvgTps        float64       `json:"avg_tps"`
-	RequestCount  int64         `json:"request_count"`
-	Series        []BucketPoint `json:"series"`
+	ChannelId    int           `json:"channel_id"`
+	ModelName    string        `json:"model_name"`
+	AvgLatencyMs int64         `json:"avg_latency_ms"`
+	AvgTtftMs    int64         `json:"avg_ttft_ms"`
+	SuccessRate  float64       `json:"success_rate"`
+	AvgTps       float64       `json:"avg_tps"`
+	RequestCount int64         `json:"request_count"`
+	Series       []BucketPoint `json:"series"`
 }
 
 type SummaryResult struct {
@@ -56,6 +56,34 @@ type SeriesResult struct {
 	Items []ChannelModelSeries `json:"items"`
 }
 
+type ModelSummary struct {
+	ModelName    string  `json:"model_name"`
+	AvgLatencyMs int64   `json:"avg_latency_ms"`
+	AvgTtftMs    int64   `json:"avg_ttft_ms"`
+	SuccessRate  float64 `json:"success_rate"`
+	AvgTps       float64 `json:"avg_tps"`
+	RequestCount int64   `json:"request_count"`
+}
+
+type ModelSummaryResult struct {
+	Summaries []ModelSummary `json:"summaries"`
+	Models    []string       `json:"models"`
+}
+
+type ModelSeries struct {
+	ModelName    string        `json:"model_name"`
+	AvgLatencyMs int64         `json:"avg_latency_ms"`
+	AvgTtftMs    int64         `json:"avg_ttft_ms"`
+	SuccessRate  float64       `json:"success_rate"`
+	AvgTps       float64       `json:"avg_tps"`
+	RequestCount int64         `json:"request_count"`
+	Series       []BucketPoint `json:"series"`
+}
+
+type ModelSeriesResult struct {
+	Items []ModelSeries `json:"items"`
+}
+
 type bucketKey struct {
 	model     string
 	channelId int
@@ -63,23 +91,23 @@ type bucketKey struct {
 }
 
 type counters struct {
-	requestCount    int64
-	successCount    int64
-	totalLatencyMs  int64
-	ttftSumMs       int64
-	ttftCount       int64
-	outputTokens    int64
-	generationMs    int64
+	requestCount   int64
+	successCount   int64
+	totalLatencyMs int64
+	ttftSumMs      int64
+	ttftCount      int64
+	outputTokens   int64
+	generationMs   int64
 }
 
 type atomicBucket struct {
-	requestCount    atomic.Int64
-	successCount    atomic.Int64
-	totalLatencyMs  atomic.Int64
-	ttftSumMs       atomic.Int64
-	ttftCount       atomic.Int64
-	outputTokens    atomic.Int64
-	generationMs    atomic.Int64
+	requestCount   atomic.Int64
+	successCount   atomic.Int64
+	totalLatencyMs atomic.Int64
+	ttftSumMs      atomic.Int64
+	ttftCount      atomic.Int64
+	outputTokens   atomic.Int64
+	generationMs   atomic.Int64
 }
 
 func (b *atomicBucket) add(s Sample) {

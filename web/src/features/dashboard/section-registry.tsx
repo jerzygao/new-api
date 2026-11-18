@@ -20,6 +20,8 @@ import type { TFunction } from 'i18next'
 
 import { createSectionRegistry } from '@/features/system-settings/utils/section-registry'
 
+import { FORK_DASHBOARD_SECTIONS } from './fork-sections'
+
 /**
  * Dashboard page section definitions
  */
@@ -45,34 +47,19 @@ const DASHBOARD_SECTIONS = [
     adminOnly: true,
     build: () => null,
   },
-  {
-    id: 'token-statistics',
-    titleKey: 'Token Statistics',
-    adminOnly: true,
-    build: () => null,
-  },
-  {
-    id: 'model-statistics',
-    titleKey: 'Model Token Usage',
-    adminOnly: true,
-    build: () => null,
-  },
-  {
-    id: 'channel-performance',
-    titleKey: 'Channel Performance',
-    adminOnly: true,
-    build: () => null,
-  },
+  ...FORK_DASHBOARD_SECTIONS,
 ] as const
 
 export type DashboardSectionId = (typeof DASHBOARD_SECTIONS)[number]['id']
 
-const ADMIN_ONLY_SECTIONS = new Set<string>([
-  'users',
-  'token-statistics',
-  'model-statistics',
-  'channel-performance',
-])
+const ADMIN_ONLY_SECTIONS = new Set<string>(
+  DASHBOARD_SECTIONS.filter(
+    (section) => 'adminOnly' in section && section.adminOnly
+  ).map((section) => section.id)
+)
+
+export const DASHBOARD_ADMIN_ONLY_SECTION_IDS: ReadonlySet<string> =
+  ADMIN_ONLY_SECTIONS
 
 const dashboardRegistry = createSectionRegistry<
   DashboardSectionId,

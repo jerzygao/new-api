@@ -157,7 +157,6 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/topup", controller.GetAllTopUps)
 				adminRoute.POST("/topup/complete", controller.AdminCompleteTopUp)
 				adminRoute.GET("/search", controller.SearchUsers)
-				adminRoute.GET("/options", controller.GetUserOptions)
 				adminRoute.GET("/:id/oauth/bindings", controller.GetUserOAuthBindingsByAdmin)
 				adminRoute.DELETE("/:id/oauth/bindings/:provider_id", controller.UnbindCustomOAuthByAdmin)
 				adminRoute.DELETE("/:id/bindings/:binding_type", controller.AdminClearUserBinding)
@@ -362,24 +361,9 @@ func SetApiRouter(router *gin.Engine) {
 		dataRoute := apiRouter.Group("/data")
 		dataRoute.GET("/", middleware.AdminAuth(), controller.GetAllQuotaDates)
 		dataRoute.GET("/users", middleware.AdminAuth(), controller.GetQuotaDatesByUser)
-		dataRoute.GET("/users/summary", middleware.AdminAuth(), controller.GetQuotaDataSummaryByUser)
-		dataRoute.GET("/groups", middleware.AdminAuth(), controller.GetQuotaDataSummaryByGroup)
-		dataRoute.GET("/channels", middleware.AdminAuth(), controller.GetChannelUsageSummaries)
-		dataRoute.GET("/users/channel-tokens", middleware.AdminAuth(), controller.GetChannelTokenUsageByUser)
-		dataRoute.GET("/groups/channel-tokens", middleware.AdminAuth(), controller.GetChannelTokenUsageByGroup)
-		dataRoute.GET("/users/model-tokens", middleware.AdminAuth(), controller.GetModelTokenUsageByUser)
-		dataRoute.GET("/groups/model-tokens", middleware.AdminAuth(), controller.GetModelTokenUsageByGroup)
-		dataRoute.GET("/models/tokens", middleware.AdminAuth(), controller.GetModelTokenUsageSummary)
 		dataRoute.GET("/self", middleware.UserAuth(), controller.GetUserQuotaDates)
 		dataRoute.GET("/flow", middleware.AdminAuth(), controller.GetAllFlowQuotaDates)
 		dataRoute.GET("/flow/self", middleware.UserAuth(), controller.GetUserFlowQuotaDates)
-
-		channelPerfRoute := apiRouter.Group("/channel-perf")
-		channelPerfRoute.Use(middleware.AdminAuth())
-		{
-			channelPerfRoute.GET("/summary", controller.GetChannelPerfSummary)
-			channelPerfRoute.GET("/series", controller.GetChannelPerfSeries)
-		}
 
 		logRoute.Use(middleware.CORS(), middleware.CriticalRateLimit())
 		{
@@ -465,4 +449,5 @@ func SetApiRouter(router *gin.Engine) {
 			deploymentsRoute.DELETE("/:id", controller.DeleteDeployment)
 		}
 	}
+	registerForkAPIRoutes(apiRouter)
 }

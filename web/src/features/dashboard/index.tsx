@@ -39,6 +39,8 @@ import { ModelsChartPreferences } from './components/models/models-chart-prefere
 import { ModelsFilter } from './components/models/models-filter-dialog'
 import { OverviewDashboard } from './components/overview/overview-dashboard'
 import { DEFAULT_TIME_GRANULARITY } from './constants'
+import { ForkDashboardSection } from './fork-section-panel'
+import { FORK_DASHBOARD_SECTION_META } from './fork-sections'
 import {
   buildDefaultDashboardFilters,
   getDefaultDays,
@@ -48,6 +50,7 @@ import {
 } from './lib'
 import {
   type DashboardSectionId,
+  DASHBOARD_ADMIN_ONLY_SECTION_IDS,
   DASHBOARD_DEFAULT_SECTION,
   DASHBOARD_SECTION_IDS,
 } from './section-registry'
@@ -112,26 +115,6 @@ const LazyUserCharts = lazy(() =>
 const LazyFlowCharts = lazy(() =>
   import('./components/flow/flow-charts').then((m) => ({
     default: m.FlowCharts,
-  }))
-)
-
-const LazyChannelPerformancePanel = lazy(() =>
-  import('./components/channel-performance/channel-performance-panel').then(
-    (m) => ({
-      default: m.ChannelPerformancePanel,
-    })
-  )
-)
-
-const LazyTokenStatistics = lazy(() =>
-  import('@/features/token-statistics/token-statistics-page').then((m) => ({
-    default: m.TokenStatisticsPage,
-  }))
-)
-
-const LazyModelStatistics = lazy(() =>
-  import('@/features/model-statistics/model-statistics-page').then((m) => ({
-    default: m.ModelStatisticsPage,
   }))
 )
 
@@ -214,15 +197,7 @@ const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
   users: {
     titleKey: 'User Analytics',
   },
-  'token-statistics': {
-    titleKey: 'Token Statistics',
-  },
-  'model-statistics': {
-    titleKey: 'Model Token Usage',
-  },
-  'channel-performance': {
-    titleKey: 'Channel Performance',
-  },
+  ...FORK_DASHBOARD_SECTION_META,
 }
 
 export function Dashboard() {
@@ -284,11 +259,7 @@ export function Dashboard() {
       DASHBOARD_SECTION_IDS.filter(
         (section) =>
           section !== 'overview' &&
-          ((section !== 'users' &&
-            section !== 'token-statistics' &&
-            section !== 'model-statistics' &&
-            section !== 'channel-performance') ||
-            isAdmin)
+          (isAdmin || !DASHBOARD_ADMIN_ONLY_SECTION_IDS.has(section))
       ),
     [isAdmin]
   )
@@ -451,27 +422,10 @@ export function Dashboard() {
               </Suspense>
             </FadeIn>
           )}
-          {activeSection === 'channel-performance' && (
-            <FadeIn>
-              <Suspense fallback={<ModelChartsFallback />}>
-                <LazyChannelPerformancePanel />
-              </Suspense>
-            </FadeIn>
-          )}
-          {activeSection === 'token-statistics' && (
-            <FadeIn>
-              <Suspense fallback={<ModelChartsFallback />}>
-                <LazyTokenStatistics />
-              </Suspense>
-            </FadeIn>
-          )}
-          {activeSection === 'model-statistics' && (
-            <FadeIn>
-              <Suspense fallback={<ModelChartsFallback />}>
-                <LazyModelStatistics />
-              </Suspense>
-            </FadeIn>
-          )}
+          <ForkDashboardSection
+            section={activeSection}
+            fallback={<ModelChartsFallback />}
+          />
         </div>
       </SectionPageLayout.Content>
     </SectionPageLayout>
